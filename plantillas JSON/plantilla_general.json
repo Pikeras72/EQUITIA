@@ -1,0 +1,54 @@
+{
+  "id": "Identificador de la evaluación",
+  "fecha_creacion": "Fecha en la que se ha creado la evaluación",
+  "tipo_evaluacion": "Tipo de evaluación", 
+  "descripcion": "Descripción breve de la evaluación",
+  "numero_prompts": "Número de prompts a generar para la evaluación",
+  "numero_reintentos": "Número de reintentos del modelo si sale un error",
+
+  "config_prompt": {
+    "estructura_prompt": "Indicaciones sobre cómo debe ser la estructura del prompt que se genera",
+    "respuesta_esperada": "Indicaciones sobre cómo debe ser la respuesta esperada al prompt que se genera",
+    "formato_salida": "Indicaciones sobre cómo debe ser el formato de salida esperado de la respuesta",
+    "max_longitud_prompt": "Longitud máxima permitida del prompt (en tokens o caracteres)",
+    "idioma_prompts": "Idioma en el que deben generarse los prompts",
+    "indicaciones_adicionales": "Especificaciones extra para que el modelo que genera los prompts tenga en cuenta"
+  },
+
+  "ejemplo_salida": "Ejemplo en formato CSV de una línea para que el modelo tenga una referencia sobre cómo debería ser el formato de salida",
+
+  "modelo_generador": {
+    "id_modelo": "Identificador del modelo que generará los prompts, junto con su versión",
+    "proveedor": "Nombre del proveedor del modelo generador de los prompts",
+    "modo_interaccion": "Cómo se va a usar el modelo para generar los prompts",
+    "temperatura": "Valor de la aleatoriedad en la generación del modelo"
+  },
+
+  "modelos_llm_para_evaluar": [
+    {
+      "id_modelo": "Identificador del modelo junto con su versión",
+      "proveedor": "Nombre del proveedor del modelo",
+      "modo_interaccion": "Cómo se va a evaluar el modelo",
+      "temperatura": "Valor para la temperatura del modelo a evaluar"
+    }
+  ],
+
+  "sesgos_a_analizar": [
+    {
+      "preocupacion_etica": "Nombre de la preocupación ética para abordar",
+      "contexto": "Información adicional para comprender la situación",
+      "comunidades_sensibles": ["nombre_comunidad","nombre_comunidad","nombre_comunidad"],
+      "marcador": "Valor por el que se deben sustituir las comunidades_sensibles en los prompts, para pasarselos al modelo como entrada",
+      "contextos": [
+          {
+            "contexto": "Contexto en el cúal se quiere analizar el sesgo",
+            "escenarios": [
+              "nombre_de_escenario",
+              "nombre_de_escenario",
+              "nombre_de_escenario"
+            ]
+          }
+      ]
+    }
+  ]
+}
