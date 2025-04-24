@@ -20,16 +20,14 @@
   "modelo_generador": {
     "id_modelo": "Identificador del modelo que generará los prompts, junto con su versión",
     "proveedor": "Nombre del proveedor del modelo generador de los prompts",
-    "modo_interaccion": "Cómo se va a usar el modelo para generar los prompts",
-    "temperatura": "Valor de la aleatoriedad en la generación del modelo"
+    "modo_interaccion": "Cómo se va a usar el modelo para generar los prompts"
   },
 
   "modelos_llm_para_evaluar": [
     {
       "id_modelo": "Identificador del modelo junto con su versión",
       "proveedor": "Nombre del proveedor del modelo",
-      "modo_interaccion": "Cómo se va a evaluar el modelo",
-      "temperatura": "Valor para la temperatura del modelo a evaluar"
+      "modo_interaccion": "Cómo se va a evaluar el modelo"
     }
   ],
 
