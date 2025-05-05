@@ -1,15 +1,40 @@
 import json
 import re
 import os
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TextStreamer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
+import time
+from datetime import datetime
+
 
 # Rutas de carpetas
-carpeta_plantillas_json = 'Plantillas evaluacion JSON'          # Carpeta donde están las plantillas JSON para cada tipo de evaluación
+carpeta_plantillas_json = 'Plantillas evaluacion JSON'           # Carpeta donde están las plantillas JSON para cada tipo de evaluación
 carpeta_metaprompts_salida = 'Plantillas metaprompts TXT'        # Carpeta donde se guardarán los archivos txt con los metaprompts como salida
-carpeta_prompts_salida = 'Prompts Generados CSV'                # Carpeta donde se guardarán los archivos csv con los prompts generados por un modelo
+carpeta_prompts_salida = 'Prompts Generados CSV'                 # Carpeta donde se guardarán los archivos csv con los prompts generados por un modelo
 os.makedirs(carpeta_metaprompts_salida, exist_ok=True)           # Crear la carpeta de metaprompts de salida si no existe
-os.makedirs(carpeta_prompts_salida, exist_ok=True)           # Crear la carpeta de prompts de salida si no existe
+os.makedirs(carpeta_prompts_salida, exist_ok=True)               # Crear la carpeta de prompts de salida si no existe
+
+# Cargar configuración del modelo para generar los prompts
+with open('config_general.json', 'r', encoding='utf-8') as f:
+    config_general = json.load(f)
+
+modelo_id = config_general['modelo_generador']['id_modelo']
+modo = config_general['modelo_generador']['modo_interaccion']
+
+# Configuración para inicializar el modelo según el modo elegido
+if modo == 'API':
+    print("Aún por definir")
+elif modo == 'local':
+    print(f"Se está intentando cargar el modelo: {modelo_id}, en modo: {modo}")
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_compute_dtype="float16",
+        bnb_4bit_quant_type="nf4"
+    )
+    tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
+    modelo = AutoModelForCausalLM.from_pretrained(modelo_id, quantization_config=bnb_config, low_cpu_mem_usage=True, device_map="auto")
+print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo}")
 
 # Cargar el texto base con llaves a reemplazar
 with open('meta_prompt.txt', 'r', encoding='utf-8') as f:
@@ -35,32 +60,37 @@ def sustituir_claves(texto, datos):
         return str(datos.get(clave, f'{{{clave}}}'))  # Si no se encuentra, se deja como estaba
     return re.sub(r'{([^{}]+)}', reemplazo, texto)
 
-# Función para invocar modelo via API
-def invocar_modelo(prompt, modelo_id):
-    tokenizer = AutoTokenizer.from_pretrained(modelo_id)
-    model = AutoModelForCausalLM.from_pretrained(
-        modelo_id,
-        device_map="auto",
-        torch_dtype=torch.float16  # O torch.float32 si tu GPU no tiene soporte para float16
-    )
+# Función para invocar modelo en local
+def invocar_modelo(prompt, modelo, tokenizer, max_tokens):
+    mensajes = [{"role": "user", "content": prompt}]
+
+    mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
+    model_inputs = mensajes_tokenizados.to("cuda")
+
+    with torch.no_grad(): # Con esto se evita guardar información para retropropagación o entrenamiento
+        respuesta_generada = modelo.generate(model_inputs, max_new_tokens=max_tokens, do_sample=True)
     
-    # Confirma uso de GPU
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"✅ Usando dispositivo: {device}")
+    respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    output = model.generate(
-        **inputs,
-        max_new_tokens=150,
-        do_sample=True,
-        top_p=0.95,
-        temperature=1,
-        streamer=streamer
-    )
+    torch.cuda.empty_cache()  # Libera memoria GPU
 
-    respuesta = tokenizer.decode(output[0], skip_special_tokens=True)
-    return respuesta
+    return respuesta[0]
+
+# Función para invocar modelo via API
+def invocar_modelo_api(texto_final, modelo_id, max_tokens):
+    print("Aún por definir")
+    return 0
+
+# Función para guardar el fichero csv con los prompts generados
+def procesar_y_guardar_respuesta(respuesta, ruta_csv):
+    with open(ruta_csv, 'w', encoding='utf-8', newline='') as f_csv:
+        f_csv.write(respuesta)
+    print(f"📄 Respuesta guardada como: {os.path.basename(ruta_csv)}")
+
+# Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
+inicio = time.time()
+fecha_inicio = datetime.now()
+print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Recorrer todos los archivos JSON dentro de la carpeta de plantillas de evaluación
 for archivo_json in os.listdir(carpeta_plantillas_json):
@@ -92,13 +122,15 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
             for contexto_obj in sesgo.get('contextos', []):
                 contexto_nombre = contexto_obj.get('contexto', '')
                 escenarios = ', '.join(contexto_obj.get('escenarios', []))
+                ejemplo_salida = ''.join(contexto_obj.get('ejemplo_salida', []))
 
                 # Combinar toda la información relevante
                 datos_combinados = {
                     **datos_globales,
                     **sesgo_base,
                     'contexto': contexto_nombre,
-                    'escenarios': escenarios
+                    'escenarios': escenarios,
+                    'ejemplo_salida' : ejemplo_salida
                 }
 
                 # Realizar doble pasada para el reemplazo de claves para cubrir llaves internas
@@ -118,23 +150,20 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
 
                 print(f"✔ Plantilla guardada como: {nombre_archivo}")
 
-                # ---------- Enviar prompt al modelo si modo_interaccion es API ----------
-                modo = datos.get("modelo_generador", {}).get("modo_interaccion", "")
-                modelo_id = datos.get("modelo_generador", {}).get("id_modelo", "")
+                # ---------- Enviar prompt al modelo ----------
+                # Número máximo de tokens que puede sacar el modelo como respuesta para todo el csv que genera
+                max_tokens = 7500
+
+                # Ruta de salida para el CSV con mismo nombre base que el .txt
+                nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
+                ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
+
                 if modo == "API":
                     print(f"🌐 Enviando prompt a modelo ({modelo_id})...")
                     try:
-                        respuesta = invocar_modelo(texto_final, modelo_id)
-                        print(respuesta)
-                        # Ruta de salida para CSV con mismo nombre base que el .txt
-                        nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
-                        ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
-
-                        # Guardar respuesta como CSV (una fila, una columna por simplicidad)
-                        with open(ruta_csv, 'w', encoding='utf-8') as f_csv:
-                            f_csv.write(respuesta)
-                            # f_csv.write(f'"{respuesta.strip().replace(chr(10), " ")}"\n')  # Eliminar saltos de línea y envolver en comillas
-                        print(f"📄 Respuesta guardada como: {nombre_csv}")
+                        respuesta = invocar_modelo_api(texto_final, modelo_id, max_tokens)
+                        
+                        procesar_y_guardar_respuesta(respuesta, ruta_csv)
 
                     except Exception as e:
                         print(f"❌ Error al invocar modelo API para {nombre_archivo}: {e}")
@@ -142,17 +171,18 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 elif modo == "local":
                     print(f"💻 Ejecutando modelo local ({modelo_id})...")
                     try:
-                        respuesta = invocar_modelo(texto_final, modelo_id)
+                        respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens)
+                        respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
 
-                        # Ruta de salida para CSV con mismo nombre base que el .txt
-                        nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
-                        ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
-
-                        # Guardar respuesta como CSV (una fila, una columna por simplicidad)
-                        with open(ruta_csv, 'w', encoding='utf-8') as f_csv:
-                            f_csv.write(respuesta)
-                            # f_csv.write(f'"{respuesta.strip().replace(chr(10), " ")}"\n')  # Eliminar saltos de línea y envolver en comillas
-                        print(f"📄 Respuesta guardada como: {nombre_csv}")
+                        procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv)
                         
                     except Exception as e:
                         print(f"❌ Error ejecutando modelo local para {nombre_archivo}: {e}")
+
+# Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
+fin = time.time()
+fecha_fin = datetime.now()
+duracion_segundos = int(fin - inicio)
+minutos, segundos = divmod(duracion_segundos, 60)
+print(f"🕒 Fin del proceso: {fecha_fin.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"⏱️ Duración total: {minutos} minutos y {segundos} segundos")

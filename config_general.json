@@ -1,0 +1,7 @@
+{
+  "modelo_generador": {
+    "id_modelo": "mistralai/Mistral-7B-Instruct-v0.1",
+    "proveedor": "mistralai",
+    "modo_interaccion": "local"
+  }
+}
