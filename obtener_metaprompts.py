@@ -5,14 +5,18 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 import time
 from datetime import datetime
-
+from cerberus import Validator
+import csv
+from pprint import pprint
 
 # Rutas de carpetas
 carpeta_plantillas_json = 'Plantillas evaluacion JSON'           # Carpeta donde están las plantillas JSON para cada tipo de evaluación
 carpeta_metaprompts_salida = 'Plantillas metaprompts TXT'        # Carpeta donde se guardarán los archivos txt con los metaprompts como salida
 carpeta_prompts_salida = 'Prompts Generados CSV'                 # Carpeta donde se guardarán los archivos csv con los prompts generados por un modelo
+carpeta_prompts_salida_erroneos = 'Prompts Generados CSV Erroneos' # Carpeta donde se guardarán los archivos csv con los prompts erroneamente generados por un modelo
 os.makedirs(carpeta_metaprompts_salida, exist_ok=True)           # Crear la carpeta de metaprompts de salida si no existe
 os.makedirs(carpeta_prompts_salida, exist_ok=True)               # Crear la carpeta de prompts de salida si no existe
+os.makedirs(carpeta_prompts_salida_erroneos, exist_ok=True)               # Crear la carpeta de prompts de salida erroneos si no existe
 
 # Cargar configuración del modelo para generar los prompts
 with open('config_general.json', 'r', encoding='utf-8') as f:
@@ -23,8 +27,10 @@ modo = config_general['modelo_generador']['modo_interaccion']
 
 # Configuración para inicializar el modelo según el modo elegido
 if modo == 'API':
+    print("----------------------")
     print("Aún por definir")
 elif modo == 'local':
+    print("----------------------")
     print(f"Se está intentando cargar el modelo: {modelo_id}, en modo: {modo}")
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
@@ -34,6 +40,7 @@ elif modo == 'local':
     )
     tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
     modelo = AutoModelForCausalLM.from_pretrained(modelo_id, quantization_config=bnb_config, low_cpu_mem_usage=True, device_map="auto")
+print("----------------------")
 print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo}")
 
 # Cargar el texto base con llaves a reemplazar
@@ -45,12 +52,7 @@ def flatten_json(y, prefix=''):
     out = {}
     for key, value in y.items():
         new_key = f"{prefix}{key}" if prefix == '' else f"{prefix}_{key}"
-        if isinstance(value, dict):
-            out.update(flatten_json(value, new_key))  # Recursivo si hay diccionarios anidados
-        elif isinstance(value, list):
-            out[new_key] = ', '.join(map(str, value))  # Convertir listas en strings separados por comas
-        else:
-            out[new_key] = value
+        out[new_key] = value
     return out
 
 # Función para reemplazar las llaves {clave} en el texto por su valor correspondiente
@@ -78,6 +80,7 @@ def invocar_modelo(prompt, modelo, tokenizer, max_tokens):
 
 # Función para invocar modelo via API
 def invocar_modelo_api(texto_final, modelo_id, max_tokens):
+    print("----------------------")
     print("Aún por definir")
     return 0
 
@@ -85,11 +88,15 @@ def invocar_modelo_api(texto_final, modelo_id, max_tokens):
 def procesar_y_guardar_respuesta(respuesta, ruta_csv):
     with open(ruta_csv, 'w', encoding='utf-8', newline='') as f_csv:
         f_csv.write(respuesta)
+    print("----------------------")
     print(f"📄 Respuesta guardada como: {os.path.basename(ruta_csv)}")
+
+# ============================================================================================
 
 # Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
 inicio = time.time()
 fecha_inicio = datetime.now()
+print("----------------------")
 print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # Recorrer todos los archivos JSON dentro de la carpeta de plantillas de evaluación
@@ -109,6 +116,10 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
         # Agregar las claves de config_prompt directamente (sin el prefijo 'config_prompt')
         datos_globales.update(datos.get('config_prompt', {}))
 
+        # Preparar la cadena formateada de esquema_salida
+        esquema_salida = datos['config_prompt'].get('esquema_salida', {})
+        datos_globales['esquema_salida'] = json.dumps(esquema_salida, ensure_ascii=False)
+
         # Recorrer cada sesgo que se debe analizar
         for sesgo in datos['sesgos_a_analizar']:
             # Extraer los datos específicos del sesgo
@@ -121,7 +132,6 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
             # Recorrer los contextos asociados a ese sesgo
             for contexto_obj in sesgo.get('contextos', []):
                 contexto_nombre = contexto_obj.get('contexto', '')
-                escenarios = ', '.join(contexto_obj.get('escenarios', []))
                 ejemplo_salida = ''.join(contexto_obj.get('ejemplo_salida', []))
 
                 # Combinar toda la información relevante
@@ -129,9 +139,19 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                     **datos_globales,
                     **sesgo_base,
                     'contexto': contexto_nombre,
-                    'escenarios': escenarios,
                     'ejemplo_salida' : ejemplo_salida
                 }
+                
+                if 'tipos_inyeccion' in datos['config_prompt']:
+                    cadena_tipos_inyeccion = ', '.join(f'"{e}"' for e in datos_globales.get('tipos_inyeccion', []))
+                    datos_combinados['tipos_inyeccion'] = cadena_tipos_inyeccion[1:-1]
+                    
+                cadena_escenarios = ', '.join(f'"{e}"' for e in contexto_obj.get('escenarios', []))
+                datos_combinados['escenarios'] = cadena_escenarios[1:-1]
+
+                #Recoger el esquema de validación de los csv y rellenarlo los valores correspondientes a las llaves
+                schema_str = sustituir_claves(datos_globales['esquema_salida'], datos_combinados)
+                schema_validacion = json.loads(schema_str)
 
                 # Realizar doble pasada para el reemplazo de claves para cubrir llaves internas
                 texto_intermedio = sustituir_claves(texto_base, datos_combinados)
@@ -148,6 +168,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 with open(ruta_salida, 'w', encoding='utf-8') as f_out:
                     f_out.write(texto_final)
 
+                print("----------------------")
                 print(f"✔ Plantilla guardada como: {nombre_archivo}")
 
                 # ---------- Enviar prompt al modelo ----------
@@ -157,8 +178,10 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 # Ruta de salida para el CSV con mismo nombre base que el .txt
                 nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
                 ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
+                ruta_csv_erroneo = os.path.join(carpeta_prompts_salida_erroneos, nombre_csv)
 
                 if modo == "API":
+                    print("----------------------")
                     print(f"🌐 Enviando prompt a modelo ({modelo_id})...")
                     try:
                         respuesta = invocar_modelo_api(texto_final, modelo_id, max_tokens)
@@ -166,17 +189,49 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                         procesar_y_guardar_respuesta(respuesta, ruta_csv)
 
                     except Exception as e:
+                        print("----------------------")
                         print(f"❌ Error al invocar modelo API para {nombre_archivo}: {e}")
 
                 elif modo == "local":
+                    print("----------------------")
                     print(f"💻 Ejecutando modelo local ({modelo_id})...")
                     try:
                         respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens)
                         respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
 
-                        procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv)
-                        
+                        print("----------------------")
+                        pprint(schema_validacion)
+                        v = Validator(schema_validacion, require_all=True)
+
+                        procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo)
+
+                        fila_erronea = False
+                        with open(ruta_csv_erroneo, newline='', encoding='utf-8') as csvfile:
+                            reader = csv.DictReader(csvfile, delimiter='|')
+                            
+                            # Comprobar si hay más de una fila (excluyendo la cabecera)
+                            filas = list(reader)  # Convertir el reader en una lista de filas
+                            
+                            if len(filas) > 0:
+                                for i, row in enumerate(filas, 1):
+                                    if not fila_erronea and not v.validate(row):
+                                        print("----------------------")
+                                        print(f"🚨 Encontrado Error en fila {i+1}: {v.errors}")
+                                        fila_erronea = True
+                            else:
+                                print(f"❌ El archivo no tiene más de una línea de datos.")
+
+                        if not fila_erronea:
+                            print("----------------------")
+                            print(f"✅ Todas las filas del csv generado son válidas.")
+                            procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv)
+                            os.remove(ruta_csv_erroneo)
+                        else:
+                            print("----------------------")
+                            print(f"❌ Hay filas del csv generado que NO son válidas.")
+                            
                     except Exception as e:
+                        print("----------------------")
                         print(f"❌ Error ejecutando modelo local para {nombre_archivo}: {e}")
 
 # Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
@@ -184,5 +239,6 @@ fin = time.time()
 fecha_fin = datetime.now()
 duracion_segundos = int(fin - inicio)
 minutos, segundos = divmod(duracion_segundos, 60)
+print("----------------------")
 print(f"🕒 Fin del proceso: {fecha_fin.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"⏱️ Duración total: {minutos} minutos y {segundos} segundos")
