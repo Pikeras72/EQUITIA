@@ -9,6 +9,18 @@ from cerberus import Validator
 import csv
 from pprint import pprint
 
+'''
+===================================================================
+Establecer una semilla para aumentar la reproducibilidad del script
+===================================================================
+'''
+SEED = 72
+torch.manual_seed(SEED)  # Establece la semilla para todos los generadores de números aleatorios en CPU de PyTorch
+torch.cuda.manual_seed_all(SEED)  #Establece la semilla para todas las GPUs que estés usando
+torch.backends.cudnn.deterministic = True  # Hace que cuDNN utilice algoritmos deterministas, es decir, que no cambien entre ejecuciones
+torch.backends.cudnn.benchmark = False  # Se asegura que los algoritmos usados sean consistentes y que no se elige automáticamente el algoritmo más rápido
+
+
 # Rutas de carpetas
 carpeta_plantillas_json = 'Plantillas evaluacion JSON'           # Carpeta donde están las plantillas JSON para cada tipo de evaluación
 carpeta_metaprompts_salida = 'Plantillas metaprompts TXT'        # Carpeta donde se guardarán los archivos txt con los metaprompts como salida
