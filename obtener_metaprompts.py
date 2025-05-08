@@ -191,6 +191,8 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
                 ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
                 ruta_csv_erroneo = os.path.join(carpeta_prompts_salida_erroneos, nombre_csv)
+                numero_reintentos = datos_globales['numero_reintentos']
+                recuento_reintentos = 1
 
                 if modo == "API":
                     print("----------------------")
@@ -208,39 +210,51 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                     print("----------------------")
                     print(f"💻 Ejecutando modelo local ({modelo_id})...")
                     try:
-                        respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens)
-                        respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
+                        while recuento_reintentos <= numero_reintentos:
+                            print("----------------------")
+                            print("Número de intento: ", recuento_reintentos)
 
-                        print("----------------------")
-                        pprint(schema_validacion)
-                        v = Validator(schema_validacion, require_all=True)
+                            nombre_sin_ext, extension = ruta_csv.rsplit('.', 1)
+                            ruta_csv_intento = f"{nombre_sin_ext}_{recuento_reintentos}.{extension}"
+                            nombre_sin_ext_err, extension = ruta_csv_erroneo.rsplit('.', 1)
+                            ruta_csv_erroneo_intento = f"{nombre_sin_ext_err}_{recuento_reintentos}.{extension}"
 
-                        procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo)
+                            respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens)
+                            respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
 
-                        fila_erronea = False
-                        with open(ruta_csv_erroneo, newline='', encoding='utf-8') as csvfile:
-                            reader = csv.DictReader(csvfile, delimiter='|')
-                            
-                            # Comprobar si hay más de una fila (excluyendo la cabecera)
-                            filas = list(reader)  # Convertir el reader en una lista de filas
-                            
-                            if len(filas) > 0:
-                                for i, row in enumerate(filas, 1):
-                                    if not fila_erronea and not v.validate(row):
-                                        print("----------------------")
-                                        print(f"🚨 Encontrado Error en fila {i+1}: {v.errors}")
-                                        fila_erronea = True
+                            print("----------------------")
+                            pprint(schema_validacion)
+                            v = Validator(schema_validacion, require_all=True)
+
+                            procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo_intento)
+
+                            fila_erronea = False
+                            with open(ruta_csv_erroneo_intento, newline='', encoding='utf-8') as csvfile:
+                                reader = csv.DictReader(csvfile, delimiter='|')
+                                
+                                # Comprobar si hay más de una fila (excluyendo la cabecera)
+                                filas = list(reader)  # Convertir el reader en una lista de filas
+                                
+                                if len(filas) > 0:
+                                    for i, row in enumerate(filas, 1):
+                                        if not fila_erronea and not v.validate(row):
+                                            print("----------------------")
+                                            print(f"🚨 Encontrado Error en fila {i+1}: {v.errors}")
+                                            fila_erronea = True
+                                else:
+                                    print(f"❌ El archivo no tiene más de una línea de datos.")
+                                    fila_erronea = True
+
+                            if not fila_erronea:
+                                print("----------------------")
+                                print(f"✅ Todas las filas del csv generado son válidas.")
+                                procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_intento)
+                                os.remove(ruta_csv_erroneo_intento)
+                                recuento_reintentos = numero_reintentos
                             else:
-                                print(f"❌ El archivo no tiene más de una línea de datos.")
-
-                        if not fila_erronea:
-                            print("----------------------")
-                            print(f"✅ Todas las filas del csv generado son válidas.")
-                            procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv)
-                            os.remove(ruta_csv_erroneo)
-                        else:
-                            print("----------------------")
-                            print(f"❌ Hay filas del csv generado que NO son válidas.")
+                                print("----------------------")
+                                print(f"❌ El csv generado NO es válido.")
+                                recuento_reintentos += 1
                             
                     except Exception as e:
                         print("----------------------")
