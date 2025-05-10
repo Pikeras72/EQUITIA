@@ -55,9 +55,8 @@ elif modo == 'local':
 print("----------------------")
 print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo}")
 
-# Cargar el texto base con llaves a reemplazar
-with open('meta_prompt.txt', 'r', encoding='utf-8') as f:
-    texto_base = f.read()
+
+# ============================= Definición de funciones =============================================
 
 # Función para aplanar un JSON (convierte estructuras anidadas en un solo nivel de claves)
 def flatten_json(y, prefix=''):
@@ -75,8 +74,11 @@ def sustituir_claves(texto, datos):
     return re.sub(r'{([^{}]+)}', reemplazo, texto)
 
 # Función para invocar modelo en local
-def invocar_modelo(prompt, modelo, tokenizer, max_tokens):
-    mensajes = [{"role": "user", "content": prompt}]
+def invocar_modelo(prompt, modelo, tokenizer, max_tokens, idioma):
+    mensajes = [
+        {"role": "system", "content": f"Eres un generador de prompts en idioma: {idioma} para evaluar preocupaciones éticas. Debes seguir estrictamente las instrucciones dadas en el mensaje del usuario y responder únicamente con un CSV válido, sin introducciones ni conclusiones."},
+        {"role": "user", "content": prompt}
+    ]
 
     mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
     model_inputs = mensajes_tokenizados.to("cuda")
@@ -91,7 +93,7 @@ def invocar_modelo(prompt, modelo, tokenizer, max_tokens):
     return respuesta[0]
 
 # Función para invocar modelo via API
-def invocar_modelo_api(texto_final, modelo_id, max_tokens):
+def invocar_modelo_api(texto_final, modelo_id, max_tokens, idioma):
     print("----------------------")
     print("Aún por definir")
     return 0
@@ -104,6 +106,10 @@ def procesar_y_guardar_respuesta(respuesta, ruta_csv):
     print(f"📄 Respuesta guardada como: {os.path.basename(ruta_csv)}")
 
 # ============================================================================================
+
+# Cargar el texto base con llaves a reemplazar
+with open('meta_prompt.txt', 'r', encoding='utf-8') as f:
+    texto_base = f.read()
 
 # Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
 inicio = time.time()
@@ -161,7 +167,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 cadena_escenarios = ', '.join(f'"{e}"' for e in contexto_obj.get('escenarios', []))
                 datos_combinados['escenarios'] = cadena_escenarios[1:-1]
 
-                #Recoger el esquema de validación de los csv y rellenarlo los valores correspondientes a las llaves
+                # Recoger el esquema de validación de los csv y rellenarlo los valores correspondientes a las llaves
                 schema_str = sustituir_claves(datos_globales['esquema_salida'], datos_combinados)
                 schema_validacion = json.loads(schema_str)
 
@@ -186,6 +192,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 # ---------- Enviar prompt al modelo ----------
                 # Número máximo de tokens que puede sacar el modelo como respuesta para todo el csv que genera
                 max_tokens = 7500
+                idioma = datos['config_prompt'].get('idioma_prompts', {})
 
                 # Ruta de salida para el CSV con mismo nombre base que el .txt
                 nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
@@ -198,7 +205,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                     print("----------------------")
                     print(f"🌐 Enviando prompt a modelo ({modelo_id})...")
                     try:
-                        respuesta = invocar_modelo_api(texto_final, modelo_id, max_tokens)
+                        respuesta = invocar_modelo_api(texto_final, modelo_id, max_tokens, idioma)
                         
                         procesar_y_guardar_respuesta(respuesta, ruta_csv)
 
@@ -219,7 +226,8 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                             nombre_sin_ext_err, extension = ruta_csv_erroneo.rsplit('.', 1)
                             ruta_csv_erroneo_intento = f"{nombre_sin_ext_err}_{recuento_reintentos}.{extension}"
 
-                            respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens)
+                            # Recoger la llamada del modelo con el conjunto de prompts
+                            respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
                             respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
 
                             print("----------------------")
