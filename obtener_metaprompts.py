@@ -8,27 +8,32 @@ from datetime import datetime
 from cerberus import Validator
 import csv
 from pprint import pprint
+import itertools
 
 '''
 ===================================================================
 Establecer una semilla para aumentar la reproducibilidad del script
-===================================================================
-'''
+
+<-- DESCOMENTAR ESTA PARTE PARA ESTABLECER LA SEMILLA -->
 SEED = 72
 torch.manual_seed(SEED)  # Establece la semilla para todos los generadores de números aleatorios en CPU de PyTorch
 torch.cuda.manual_seed_all(SEED)  #Establece la semilla para todas las GPUs que estés usando
 torch.backends.cudnn.deterministic = True  # Hace que cuDNN utilice algoritmos deterministas, es decir, que no cambien entre ejecuciones
 torch.backends.cudnn.benchmark = False  # Se asegura que los algoritmos usados sean consistentes y que no se elige automáticamente el algoritmo más rápido
 
+===================================================================
+'''
 
 # Rutas de carpetas
 carpeta_plantillas_json = 'Plantillas evaluacion JSON'           # Carpeta donde están las plantillas JSON para cada tipo de evaluación
 carpeta_metaprompts_salida = 'Plantillas metaprompts TXT'        # Carpeta donde se guardarán los archivos txt con los metaprompts como salida
 carpeta_prompts_salida = 'Prompts Generados CSV'                 # Carpeta donde se guardarán los archivos csv con los prompts generados por un modelo
 carpeta_prompts_salida_erroneos = 'Prompts Generados CSV Erroneos' # Carpeta donde se guardarán los archivos csv con los prompts erroneamente generados por un modelo
+carpeta_salida_csv = 'Prompts Dataset'                           # Carpeta donde se guardarán los archivos csv con los prompts rellenos de las comunidades sensibles correspondientes
 os.makedirs(carpeta_metaprompts_salida, exist_ok=True)           # Crear la carpeta de metaprompts de salida si no existe
 os.makedirs(carpeta_prompts_salida, exist_ok=True)               # Crear la carpeta de prompts de salida si no existe
-os.makedirs(carpeta_prompts_salida_erroneos, exist_ok=True)               # Crear la carpeta de prompts de salida erroneos si no existe
+os.makedirs(carpeta_prompts_salida_erroneos, exist_ok=True)      # Crear la carpeta de prompts de salida erroneos si no existe
+os.makedirs(carpeta_salida_csv, exist_ok=True)                   # Crear la carpeta del datastet de prompts si no existe
 
 # Cargar configuración del modelo para generar los prompts
 with open('config_general.json', 'r', encoding='utf-8') as f:
@@ -182,8 +187,8 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 nombre_archivo = f"meta_prompt_{tipo_eval}_sesgo_{preocupacion}_contexto_{contexto_slug}.txt"
 
                 # Guardar el archivo con el metaprompt completo en la carpeta de salida
-                ruta_salida = os.path.join(carpeta_metaprompts_salida, nombre_archivo)
-                with open(ruta_salida, 'w', encoding='utf-8') as f_out:
+                ruta_salida_metaprompt = os.path.join(carpeta_metaprompts_salida, nombre_archivo)
+                with open(ruta_salida_metaprompt, 'w', encoding='utf-8') as f_out:
                     f_out.write(texto_final)
 
                 print("----------------------")
@@ -193,13 +198,14 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                 # Número máximo de tokens que puede sacar el modelo como respuesta para todo el csv que genera
                 max_tokens = 7500
                 idioma = datos['config_prompt'].get('idioma_prompts', {})
+                patron_marcadores = r"\{[^{}]+\}"
 
                 # Ruta de salida para el CSV con mismo nombre base que el .txt
                 nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
                 ruta_csv = os.path.join(carpeta_prompts_salida, nombre_csv)
                 ruta_csv_erroneo = os.path.join(carpeta_prompts_salida_erroneos, nombre_csv)
                 numero_reintentos = datos_globales['numero_reintentos']
-                recuento_reintentos = 1
+                recuento_reintentos = 0
 
                 if modo == "API":
                     print("----------------------")
@@ -217,14 +223,14 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                     print("----------------------")
                     print(f"💻 Ejecutando modelo local ({modelo_id})...")
                     try:
-                        while recuento_reintentos <= numero_reintentos:
+                        while recuento_reintentos < numero_reintentos:
                             print("----------------------")
-                            print("Número de intento: ", recuento_reintentos)
+                            print("Número de intento: ", recuento_reintentos+1)
 
                             nombre_sin_ext, extension = ruta_csv.rsplit('.', 1)
-                            ruta_csv_intento = f"{nombre_sin_ext}_{recuento_reintentos}.{extension}"
+                            ruta_csv_intento = f"{nombre_sin_ext}_{recuento_reintentos+1}.{extension}"
                             nombre_sin_ext_err, extension = ruta_csv_erroneo.rsplit('.', 1)
-                            ruta_csv_erroneo_intento = f"{nombre_sin_ext_err}_{recuento_reintentos}.{extension}"
+                            ruta_csv_erroneo_intento = f"{nombre_sin_ext_err}_{recuento_reintentos+1}.{extension}"
 
                             # Recoger la llamada del modelo con el conjunto de prompts
                             respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
@@ -238,10 +244,10 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
 
                             fila_erronea = False
                             with open(ruta_csv_erroneo_intento, newline='', encoding='utf-8') as csvfile:
-                                reader = csv.DictReader(csvfile, delimiter='|')
+                                reader_csv = csv.DictReader(csvfile, delimiter='|')
                                 
                                 # Comprobar si hay más de una fila (excluyendo la cabecera)
-                                filas = list(reader)  # Convertir el reader en una lista de filas
+                                filas = list(reader_csv)  # Convertir el reader en una lista de filas
                                 
                                 if len(filas) > 0:
                                     for i, row in enumerate(filas, 1):
@@ -257,8 +263,50 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                                 print("----------------------")
                                 print(f"✅ Todas las filas del csv generado son válidas.")
                                 procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_intento)
-                                os.remove(ruta_csv_erroneo_intento)
+                                try:
+                                    os.remove(ruta_csv_erroneo_intento)
+                                    print("----------------------")
+                                    print(f"🗑️ Eliminado archivo: {ruta_csv_erroneo_intento}")
+                                except Exception as e:
+                                    print(f"❌ No se pudo eliminar {ruta_csv_erroneo_intento}: {e}")
                                 recuento_reintentos = numero_reintentos
+
+                                # Rellenando los csvs bien generados con sus respectivas comunidades sensibles
+                                ruta_salida_csv = os.path.join(carpeta_salida_csv, nombre_csv)
+                                comunidades_sensibles = sesgo.get('comunidades_sensibles', [])
+                                
+                                with open(ruta_csv_intento, mode='r', encoding='utf-8') as archivo_entrada, open(ruta_salida_csv, mode='w', newline='', encoding='utf-8') as archivo_salida:
+                                    reader = csv.DictReader(archivo_entrada, delimiter='|')
+                                    cabecera = [campo for campo in reader.fieldnames if campo != 'id'] # Eliminar la columna 'id'
+                                    writer = csv.DictWriter(archivo_salida, fieldnames=cabecera, delimiter='|', quoting=csv.QUOTE_MINIMAL)
+                                    writer.writeheader()
+
+                                    for fila in reader:
+                                        fila.pop('id', None)
+                                        fila_original = fila['prompt']
+
+                                        # Encuentra todos los marcadores que existan en el prompt
+                                        marcadores = re.findall(patron_marcadores, fila_original)
+                                        num_marcadores = len(marcadores)
+
+                                        if num_marcadores == 1:
+                                            for comunidad in comunidades_sensibles:
+                                                fila_modificada = fila.copy()
+                                                nuevo_prompt = re.sub(patron_marcadores, comunidad, fila_original, count=1)
+                                                fila_modificada['prompt'] = nuevo_prompt
+                                                writer.writerow(fila_modificada)
+
+                                        elif num_marcadores >= 2:
+                                            # Generar todas las permutaciones posibles sin repetir valores
+                                            combinaciones = itertools.permutations(comunidades_sensibles, num_marcadores)
+                                            
+                                            for combinacion in combinaciones:
+                                                fila_modificada = fila.copy()
+                                                nuevo_prompt = fila_original
+                                                for marcador, comunidad in zip(marcadores, combinacion): # Empareja elementos de las dos listas a la vez
+                                                    nuevo_prompt = nuevo_prompt.replace(marcador, comunidad, 1)
+                                                fila_modificada['prompt'] = nuevo_prompt
+                                                writer.writerow(fila_modificada)       
                             else:
                                 print("----------------------")
                                 print(f"❌ El csv generado NO es válido.")
