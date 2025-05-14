@@ -169,7 +169,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                     cadena_tipos_inyeccion = ', '.join(f'"{e}"' for e in datos_globales.get('tipos_inyeccion', []))
                     datos_combinados['tipos_inyeccion'] = cadena_tipos_inyeccion[1:-1]
                     
-                cadena_escenarios = ', '.join(f'"{e}"' for e in contexto_obj.get('escenarios', []))
+                cadena_escenarios = ', '.join(f'"{e.lower()}"' for e in contexto_obj.get('escenarios', []))
                 datos_combinados['escenarios'] = cadena_escenarios[1:-1]
 
                 # Recoger el esquema de validación de los csv y rellenarlo los valores correspondientes a las llaves
@@ -283,30 +283,35 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
 
                                     for fila in reader:
                                         fila.pop('id', None)
-                                        fila_original = fila['prompt']
 
-                                        # Encuentra todos los marcadores que existan en el prompt
-                                        marcadores = re.findall(patron_marcadores, fila_original)
-                                        num_marcadores = len(marcadores)
+                                        if not "PREGUNTAS_RESPUESTAS_MULTIPLES" in ruta_csv_intento:
+                                            fila_original = fila['prompt']
 
-                                        if num_marcadores == 1:
-                                            for comunidad in comunidades_sensibles:
-                                                fila_modificada = fila.copy()
-                                                nuevo_prompt = re.sub(patron_marcadores, comunidad, fila_original, count=1)
-                                                fila_modificada['prompt'] = nuevo_prompt
-                                                writer.writerow(fila_modificada)
+                                            # Encuentra todos los marcadores que existan en el prompt
+                                            marcadores = re.findall(patron_marcadores, fila_original)
+                                            num_marcadores = len(marcadores)
 
-                                        elif num_marcadores >= 2:
-                                            # Generar todas las permutaciones posibles sin repetir valores
-                                            combinaciones = itertools.permutations(comunidades_sensibles, num_marcadores)
-                                            
-                                            for combinacion in combinaciones:
-                                                fila_modificada = fila.copy()
-                                                nuevo_prompt = fila_original
-                                                for marcador, comunidad in zip(marcadores, combinacion): # Empareja elementos de las dos listas a la vez
-                                                    nuevo_prompt = nuevo_prompt.replace(marcador, comunidad, 1)
-                                                fila_modificada['prompt'] = nuevo_prompt
-                                                writer.writerow(fila_modificada)       
+                                            if num_marcadores == 1:
+                                                for comunidad in comunidades_sensibles:
+                                                    fila_modificada = fila.copy()
+                                                    nuevo_prompt = re.sub(patron_marcadores, comunidad, fila_original, count=1)
+                                                    fila_modificada['prompt'] = nuevo_prompt
+                                                    writer.writerow(fila_modificada)
+
+                                            elif num_marcadores >= 2:
+                                                # Generar todas las permutaciones posibles sin repetir valores
+                                                combinaciones = itertools.permutations(comunidades_sensibles, num_marcadores)
+                                                
+                                                for combinacion in combinaciones:
+                                                    fila_modificada = fila.copy()
+                                                    nuevo_prompt = fila_original
+                                                    for marcador, comunidad in zip(marcadores, combinacion): # Empareja elementos de las dos listas a la vez
+                                                        nuevo_prompt = nuevo_prompt.replace(marcador, comunidad, 1)
+                                                    fila_modificada['prompt'] = nuevo_prompt
+                                                    writer.writerow(fila_modificada)
+                                        else:
+                                            writer.writerow(fila)
+
                             else:
                                 print("----------------------")
                                 print(f"❌ El csv generado NO es válido.")
