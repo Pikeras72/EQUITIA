@@ -122,8 +122,51 @@ fecha_inicio = datetime.now()
 print("----------------------")
 print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
 
+# Analizar las llamadas al modelo a realizar y prompts a generar antes de comenzar
+print("----------------------")
+print("🔍 Estimando la carga de trabajo prevista antes de ejecutar el modelo...")
+
+total_prompts_salida = 0
+total_llamadas_mejor_caso = 0
+total_llamadas_peor_caso = 0
+total_llamadas_generador_reales = 0
+total_prompts_salida_reales = 0
+plantillas_json = os.listdir(carpeta_plantillas_json)
+
+for archivo_json in plantillas_json:
+    if archivo_json.endswith('.json'):
+        ruta_json = os.path.join(carpeta_plantillas_json, archivo_json)
+        with open(ruta_json, 'r', encoding='utf-8') as f:
+            datos = json.load(f)
+        numero_prompts = datos.get('numero_prompts', 0)
+        numero_reintentos = datos.get('numero_reintentos', 1)
+
+        sesgos = datos.get('sesgos_a_analizar', [])
+        for sesgo in sesgos:
+            contextos = sesgo.get('contextos', [])
+            comunidades_sensibles = sesgo.get('comunidades_sensibles', [])
+
+            for contexto in contextos:
+                total_prompts_salida += numero_prompts
+                total_llamadas_mejor_caso += 1 * 1  # Solo una llamada es suficiente
+                total_llamadas_peor_caso += 1 * numero_reintentos  # Hasta N reintentos de llamada
+
+print("----------------------")
+print(f"Plantillas de evaluación encontradas: {len(plantillas_json)} plantillas")
+print(f"Total de prompts únicos a generar (como mínimo): {total_prompts_salida} prompts")
+print("\nEstimación del número de llamadas que se realizarán al modelo:")
+print(f"- En el mejor de los casos (todas las evaluaciones correctas a la primera): {total_llamadas_mejor_caso} llamadas")
+print(f"- En el peor de los casos (todas las evaluaciones requieren el máximo de reintentos): {total_llamadas_peor_caso} llamadas")
+
+# Preguntar al usuario si quiere continuar
+print("----------------------")
+respuesta = input("¿Quieres comenzar el proceso de generación de prompts? ([Y]/n): ").strip().lower()
+if respuesta == 'n':
+    print("Proceso cancelado por el usuario.")
+    exit(0)  # Termina el programa
+
 # Recorrer todos los archivos JSON dentro de la carpeta de plantillas de evaluación
-for archivo_json in os.listdir(carpeta_plantillas_json):
+for archivo_json in plantillas_json:
     if archivo_json.endswith('.json'):
         ruta_json = os.path.join(carpeta_plantillas_json, archivo_json)
         
@@ -235,6 +278,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                             # Recoger la llamada del modelo con el conjunto de prompts
                             respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
                             respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
+                            total_llamadas_generador_reales += 1
 
                             print("----------------------")
                             pprint(schema_validacion)
@@ -297,6 +341,7 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                                                     nuevo_prompt = re.sub(patron_marcadores, comunidad, fila_original, count=1)
                                                     fila_modificada['prompt'] = nuevo_prompt
                                                     writer.writerow(fila_modificada)
+                                                    total_prompts_salida_reales += 1
 
                                             elif num_marcadores >= 2:
                                                 # Generar todas las permutaciones posibles sin repetir valores
@@ -309,8 +354,10 @@ for archivo_json in os.listdir(carpeta_plantillas_json):
                                                         nuevo_prompt = nuevo_prompt.replace(marcador, comunidad, 1)
                                                     fila_modificada['prompt'] = nuevo_prompt
                                                     writer.writerow(fila_modificada)
+                                                    total_prompts_salida_reales += 1
                                         else:
                                             writer.writerow(fila)
+                                            total_prompts_salida_reales += 1
 
                             else:
                                 print("----------------------")
@@ -327,5 +374,7 @@ fecha_fin = datetime.now()
 duracion_segundos = int(fin - inicio)
 minutos, segundos = divmod(duracion_segundos, 60)
 print("----------------------")
-print(f"🕒 Fin del proceso: {fecha_fin.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Finalmente se han generado {total_prompts_salida_reales} prompts únicos.")
+print(f"Finalmente se han realizado {total_llamadas_generador_reales} llamadas al modelo para generar los prompts.")
+print(f"\n🕒 Fin del proceso: {fecha_fin.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"⏱️ Duración total: {minutos} minutos y {segundos} segundos")
