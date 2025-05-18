@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 import torch
 import time
 from datetime import datetime
-from cerberus import Validator
+from validadores.validador_insensible import ValidadorInsensible
 import csv
 from pprint import pprint
 import itertools
@@ -212,7 +212,7 @@ for archivo_json in plantillas_json:
                     cadena_tipos_inyeccion = ', '.join(f'"{e}"' for e in datos_globales.get('tipos_inyeccion', []))
                     datos_combinados['tipos_inyeccion'] = cadena_tipos_inyeccion[1:-1]
                     
-                cadena_escenarios = ', '.join(f'"{e.lower()}"' for e in contexto_obj.get('escenarios', []))
+                cadena_escenarios = ', '.join(f'"{e}"' for e in contexto_obj.get('escenarios', []))
                 datos_combinados['escenarios'] = cadena_escenarios[1:-1]
 
                 # Recoger el esquema de validación de los csv y rellenarlo los valores correspondientes a las llaves
@@ -282,7 +282,7 @@ for archivo_json in plantillas_json:
 
                             print("----------------------")
                             pprint(schema_validacion)
-                            v = Validator(schema_validacion, require_all=True)
+                            v = ValidadorInsensible(schema_validacion, require_all=True)
 
                             procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo_intento)
 
