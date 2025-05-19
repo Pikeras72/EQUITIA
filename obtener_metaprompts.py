@@ -110,6 +110,41 @@ def procesar_y_guardar_respuesta(respuesta, ruta_csv):
     print("----------------------")
     print(f"📄 Respuesta guardada como: {os.path.basename(ruta_csv)}")
 
+def limpiar_respuesta_generada(respuesta, numero_prompts, esquema_salida):
+    respuesta = re.sub(r'.*?\[/INST\] ', '', respuesta, flags=re.DOTALL).strip() # Eliminar el prompt de entrada que se muestra junto al prompt de salida
+    # Eliminar los espacios que se ponen al lado del separador y carácteres extraños
+    respuesta = respuesta.replace('"', '')
+    respuesta = re.sub(r'\s*\|\s*', '|', respuesta)
+    lineas = respuesta.splitlines()
+    lineas_limpias = []
+
+    for linea in lineas:
+        if '|' not in linea:
+            continue  # Eliminar líneas que no contienen el separador '|'
+        if re.fullmatch(r'\s*\|?(\s*-+\s*\|)+\s*-*\s*\|?\s*', linea):
+            continue  # Eliminar línea si solo contiene: |, -, y espacios
+        linea = linea.strip('|')  # Quita '|' del inicio y del final, si existen
+        lineas_limpias.append(linea)
+
+    # Añadir cabecera si no está
+    cabecera = '|'.join(esquema_salida.keys())
+    if not lineas_limpias or lineas_limpias[0].strip().lower() != cabecera.lower():
+        lineas_limpias.insert(0, cabecera)
+    
+    # Validar que todas las líneas tienen el número correcto de separadores
+    num_campos = len(esquema_salida.keys())
+    separadores_esperados = num_campos - 1
+    lineas_validas = [linea for linea in lineas_limpias if linea.count('|') == separadores_esperados]
+
+    # Eliminar líneas que no tengan marcador (excepto la cabecera)
+    lineas_con_marcador = [cabecera] + [linea for linea in lineas_validas[1:] if re.search(r'\{[a-zA-Z_]+\}', linea)]
+
+    respuesta_limpia = "\n".join(lineas_con_marcador)
+    respuesta_limpia = re.sub(r'^[\s\S]*?(?=id\|prompt\|)', '', respuesta_limpia)  # Busca desde el inicio hasta la primera aparición de "id|prompt|" y elimina todo lo anterior
+    lineas_finales = respuesta_limpia.splitlines()[:1+numero_prompts]  # Limitar líneas a cabecera + numero_prompts
+    respuesta_final = "\n".join(lineas_finales)
+    return respuesta_final
+
 # ============================================================================================
 
 # Cargar el texto base con llaves a reemplazar
@@ -275,14 +310,14 @@ for archivo_json in plantillas_json:
                             nombre_sin_ext_err, extension = ruta_csv_erroneo.rsplit('.', 1)
                             ruta_csv_erroneo_intento = f"{nombre_sin_ext_err}_{recuento_reintentos+1}.{extension}"
 
-                            # Recoger la llamada del modelo con el conjunto de prompts
-                            respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
-                            respuesta_limpia = re.sub(r'.*?\[/INST\]', '', respuesta, flags=re.DOTALL).strip()
-                            total_llamadas_generador_reales += 1
-
                             print("----------------------")
                             pprint(schema_validacion)
                             v = ValidadorInsensible(schema_validacion, require_all=True)
+
+                            # Recoger la llamada del modelo con el conjunto de prompts
+                            respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
+                            respuesta_limpia = limpiar_respuesta_generada(respuesta, datos.get('numero_prompts', 0), esquema_salida)
+                            total_llamadas_generador_reales += 1
 
                             procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo_intento)
 
@@ -310,7 +345,7 @@ for archivo_json in plantillas_json:
                                 try:
                                     os.remove(ruta_csv_erroneo_intento)
                                     print("----------------------")
-                                    print(f"🗑️ Eliminado archivo: {ruta_csv_erroneo_intento}")
+                                    print(f"🗑️  Eliminado archivo: {ruta_csv_erroneo_intento}")
                                 except Exception as e:
                                     print(f"❌ No se pudo eliminar {ruta_csv_erroneo_intento}: {e}")
                                 recuento_reintentos = numero_reintentos

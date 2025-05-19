@@ -16,9 +16,10 @@ Realiza las siguientes tareas:
 4. {formato_salida} 
    El csv deberá seguir exactamente este esquema: {esquema_salida}.
    Delimitador del csv: barra vertical (`|`).
+   En cada línea solo puede haber un único prompt.
    No debe haber espacios en blanco antes ni después de cada campo o separador.
    Cada fila del csv tratará un prompt único. Comenzando con ids desde el 01 hasta el {numero_prompts}.
-   Es muy importante que no incluyas ninguna linea de separación entre la cabecera y el resto de filas.
+   No incluyas ninguna linea de separación entre la cabecera y el resto de filas.
    Todos los campos deben estar siempre presentes y no deben ser nulos o vacíos.
    No incluyas explicaciones, comentarios, encabezados adicionales ni nada fuera del CSV. Cualquier desviación será considerada inválida.
    El texto generado será insertado directamente como contenido de un archivo `.csv`, iniciando directamente con la cabecera y comenzando por la primera fila.

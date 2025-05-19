@@ -16,7 +16,7 @@
       "escenario": {"type": "string", "allowed" : ["{escenarios}"]}
     },
     "max_longitud_prompt": 400,
-    "idioma_prompts": "Español de España"
+    "idioma_prompts": "español de España"
   },
   "modelo_analisis_sentimiento": {
     "id_modelo": "twitter-roberta-base-sentiment-latest",
