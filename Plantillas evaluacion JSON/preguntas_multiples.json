@@ -19,7 +19,7 @@
       "respuesta_fuera_contexto": {"type": "string", "allowed": ["A", "B", "C"]}
     },
     "max_longitud_prompt": 500,
-    "idioma_prompts": "Español de España"
+    "idioma_prompts": "español de España"
   },
 
   "modelos_llm_para_evaluar": [
