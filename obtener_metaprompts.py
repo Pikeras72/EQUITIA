@@ -110,39 +110,68 @@ def procesar_y_guardar_respuesta(respuesta, ruta_csv):
     print("----------------------")
     print(f"📄 Respuesta guardada como: {os.path.basename(ruta_csv)}")
 
-def limpiar_respuesta_generada(respuesta, numero_prompts, esquema_salida):
-    respuesta = re.sub(r'.*?\[/INST\] ', '', respuesta, flags=re.DOTALL).strip() # Eliminar el prompt de entrada que se muestra junto al prompt de salida
-    # Eliminar los espacios que se ponen al lado del separador y carácteres extraños
-    respuesta = respuesta.replace('"', '')
-    respuesta = re.sub(r'\s*\|\s*', '|', respuesta)
-    lineas = respuesta.splitlines()
+def limpiar_respuesta_generada(respuesta, numero_prompts, esquema_salida, marcador):
     lineas_limpias = []
+    contador_correctas = 0
+    contador_modificadas = 0
+    contador_agregadas = 0
+    contador_eliminadas = 0
+    
+    separadores_esperados = len(esquema_salida.keys()) - 1
+    cabecera = '|'.join(esquema_salida.keys())
 
-    for linea in lineas:
-        if '|' not in linea:
-            continue  # Eliminar líneas que no contienen el separador '|'
+    respuesta = re.sub(r'.*?\[/INST\] ', '', respuesta, flags=re.DOTALL).strip() # Eliminar el prompt de entrada que se muestra junto al prompt de salida
+    lineas_originales = respuesta.splitlines()
+
+    for linea in lineas_originales:
+        linea_original = linea
+        # Eliminar los espacios que se ponen al lado del separador y carácteres extraños
+        linea = linea.replace('"', '')
+        linea = re.sub(r'\s*\|\s*', '|', linea)
         if re.fullmatch(r'\s*\|?(\s*-+\s*\|)+\s*-*\s*\|?\s*', linea):
+            contador_eliminadas += 1
             continue  # Eliminar línea si solo contiene: |, -, y espacios
         linea = linea.strip('|')  # Quita '|' del inicio y del final, si existen
-        lineas_limpias.append(linea)
+        if linea.count('|') != separadores_esperados:
+            contador_eliminadas += 1
+            continue  # Eliminar línea si no contiene el número correcto de separadores
+        if not re.search(marcador, linea) and linea.strip() != cabecera.lower():
+            contador_eliminadas += 1
+            continue  # Eliminar líneas que no tengan marcador (excepto la cabecera)
+
+        if linea != linea_original:
+            lineas_limpias.append(linea)
+            contador_modificadas += 1
+        else:
+            lineas_limpias.append(linea)
+            contador_correctas += 1        
 
     # Añadir cabecera si no está
-    cabecera = '|'.join(esquema_salida.keys())
     if not lineas_limpias or lineas_limpias[0].strip().lower() != cabecera.lower():
         lineas_limpias.insert(0, cabecera)
+        contador_agregadas += 1
     
-    # Validar que todas las líneas tienen el número correcto de separadores
-    num_campos = len(esquema_salida.keys())
-    separadores_esperados = num_campos - 1
-    lineas_validas = [linea for linea in lineas_limpias if linea.count('|') == separadores_esperados]
+    # Guardar índices de líneas modificadas antes del recorte
+    indices_modificadas = {i for i, linea in enumerate(lineas_limpias) if linea not in lineas_originales}
+    num_lineas_antes = len(lineas_limpias)
+    lineas_limpias = lineas_limpias[:1 + numero_prompts]
+    num_lineas_despues = len(lineas_limpias)
+    eliminadas_finales = num_lineas_antes - num_lineas_despues
+    modificadas_eliminadas = len([i for i in range(num_lineas_antes) if i >= num_lineas_despues and i in indices_modificadas])  # Recalcular cuántas de esas eliminadas eran líneas modificadas
+    contador_modificadas -= modificadas_eliminadas # Ajustar contador contador_modificadas
+    contador_eliminadas += eliminadas_finales # Ajustar contador contador_eliminadas
+    respuesta_final = "\n".join(lineas_limpias)
 
-    # Eliminar líneas que no tengan marcador (excepto la cabecera)
-    lineas_con_marcador = [cabecera] + [linea for linea in lineas_validas[1:] if re.search(r'\{[a-zA-Z_]+\}', linea)]
+    total = contador_correctas + contador_modificadas + contador_agregadas + contador_eliminadas
+    porcentaje = lambda x: (x / total * 100) if total > 0 else 0
 
-    respuesta_limpia = "\n".join(lineas_con_marcador)
-    respuesta_limpia = re.sub(r'^[\s\S]*?(?=id\|prompt\|)', '', respuesta_limpia)  # Busca desde el inicio hasta la primera aparición de "id|prompt|" y elimina todo lo anterior
-    lineas_finales = respuesta_limpia.splitlines()[:1+numero_prompts]  # Limitar líneas a cabecera + numero_prompts
-    respuesta_final = "\n".join(lineas_finales)
+    print("----------------------")
+    print(f"Resumen:")
+    print(f"✔️  Líneas correctas:    {contador_correctas} ({porcentaje(contador_correctas):.1f}%)")
+    print(f"🛠️  Líneas modificadas:  {contador_modificadas} ({porcentaje(contador_modificadas):.1f}%)")
+    print(f"➕ Líneas añadidas:     {contador_agregadas} ({porcentaje(contador_agregadas):.1f}%)")
+    print(f"➖ Líneas eliminadas:   {contador_eliminadas} ({porcentaje(contador_eliminadas):.1f}%)")
+
     return respuesta_final
 
 # ============================================================================================
@@ -276,7 +305,6 @@ for archivo_json in plantillas_json:
                 # Número máximo de tokens que puede sacar el modelo como respuesta para todo el csv que genera
                 max_tokens = 7500
                 idioma = datos['config_prompt'].get('idioma_prompts', {})
-                patron_marcadores = r"\{[^{}]+\}"
 
                 # Ruta de salida para el CSV con mismo nombre base que el .txt
                 nombre_csv = nombre_archivo.replace('meta_prompt_', 'prompts_generados_').replace('.txt', '.csv')
@@ -284,6 +312,7 @@ for archivo_json in plantillas_json:
                 ruta_csv_erroneo = os.path.join(carpeta_prompts_salida_erroneos, nombre_csv)
                 numero_reintentos = datos_globales['numero_reintentos']
                 recuento_reintentos = 0
+                marcador_plantilla = rf"{{{datos_combinados['marcador']}}}"
 
                 if modo == "API":
                     print("----------------------")
@@ -316,7 +345,7 @@ for archivo_json in plantillas_json:
 
                             # Recoger la llamada del modelo con el conjunto de prompts
                             respuesta = invocar_modelo(texto_final, modelo, tokenizer, max_tokens, idioma)
-                            respuesta_limpia = limpiar_respuesta_generada(respuesta, datos.get('numero_prompts', 0), esquema_salida)
+                            respuesta_limpia = limpiar_respuesta_generada(respuesta, datos.get('numero_prompts', 0), esquema_salida, marcador_plantilla)
                             total_llamadas_generador_reales += 1
 
                             procesar_y_guardar_respuesta(respuesta_limpia, ruta_csv_erroneo_intento)
@@ -367,13 +396,13 @@ for archivo_json in plantillas_json:
                                             fila_original = fila['prompt']
 
                                             # Encuentra todos los marcadores que existan en el prompt
-                                            marcadores = re.findall(patron_marcadores, fila_original)
+                                            marcadores = re.findall(marcador_plantilla, fila_original)
                                             num_marcadores = len(marcadores)
 
                                             if num_marcadores == 1:
                                                 for comunidad in comunidades_sensibles:
                                                     fila_modificada = fila.copy()
-                                                    nuevo_prompt = re.sub(patron_marcadores, comunidad, fila_original, count=1)
+                                                    nuevo_prompt = re.sub(marcador_plantilla, comunidad, fila_original, count=1)
                                                     fila_modificada['prompt'] = nuevo_prompt
                                                     writer.writerow(fila_modificada)
                                                     total_prompts_salida_reales += 1
