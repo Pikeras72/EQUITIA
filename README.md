@@ -19,6 +19,8 @@ Ahora más que nunca necesitamos conocer cómo se comportan los modelos LLM y c�
 
 Para lograr entender cómo de sesgado está un modelo LLM, se ha desarrolla esta herramienta que permite entender de un simple vistazo y, en función de una serie de: contextos, escenarios, comunidades sensibles y sesgos, cómo de sesgado está un modelo, ofreciendo valores realistas y cuantificables.
 
+![Diagrama de Flujo](https://github.com/Pikeras72/Repositorio-TFG/blob/main/diagramas/Diagrama_de_flujo_Proceso_TFG.png)
+
 [Subir⬆️](#top)
 
 ---
@@ -83,11 +85,43 @@ Esta versión incluye un avance en la validación, generación y limpieza de los
 - Mostrar el porcentaje de filas correctas e incorrectas de cada csv durante su validación. ([#21](https://github.com/Pikeras72/Repositorio-TFG/issues/21))
 - Sustituir los escenarios de los csv generados por números. ([#22](https://github.com/Pikeras72/Repositorio-TFG/issues/22))
 
+
+#### ---- <Versión 0.3> --- <Actualización [22/05/2025]> ----
+
+Con esta versión se mejora en gran medida la cantidad de prompts generados correctamente tras su limpieza y modificación.
+Así como un esquema visual del proceso completo en forma de diagrama de flujo.
+
+**Incluye lo siguiente:**
+
+- Esquema visual en forma de diagrama de flujo del proceso completo de la herramienta. ([#20](https://github.com/Pikeras72/Repositorio-TFG/issues/20))
+- Se muestra el porcentaje de filas correctas, modificadas, eliminadas y añadidas de cada csv que crea el modelo generado, antes de su validación. ([#21](https://github.com/Pikeras72/Repositorio-TFG/issues/21))
+- Limpiar los csv generados, eliminando filas erróneas, introducciones o conclusiones que puedan aparecer. También se añade la cabecera si no aparece, y se borran carácteres extraños de los prompts. ([#19](https://github.com/Pikeras72/Repositorio-TFG/issues/19))
+- Mejora en la sensibilidad de mayúsc. y minúsc. en el validador de csvs (librería Cerberus). ([#23](https://github.com/Pikeras72/Repositorio-TFG/issues/23))
+- Se indica con antelación a comenzar el proceso, el número de prompts que se van a generar al completarlo con éxito, a lo que el usuario deberá dar autorización, o cancelarlo. [#18](https://github.com/Pikeras72/Repositorio-TFG/issues/18))
+
+**Puntos débiles:**
+
+- Aún falta recoger el modelo que se va a evaluar.
+- Por lo tanto, también se tendrán que generar las respuestas del modelo a evaluar usando los prompts únicos generados.
+- Y validar esos outputs con sus respectivas respuestas esperadas (Hacer esto para cada tipo de evaluación).
+- Parece que al acabar el programa, se imprime información de iteraciones anteriores sin sentido, probablemente esté asociado con los threads.
+
+**Mejoras futuras:**
+
+- Generar respuestas del modelo a evaluar. ([#29](https://github.com/Pikeras72/Repositorio-TFG/issues/29))
+- Recoger el modelo a evaluar. ([#30](https://github.com/Pikeras72/Repositorio-TFG/issues/30)
+- Revisar cierre de los threads. ([#32](https://github.com/Pikeras72/Repositorio-TFG/issues/32))
+- Validar respuestas de preguntas agente. ([#31](https://github.com/Pikeras72/Repositorio-TFG/issues/31))
+- Validar respuestas de preguntas análisis de sentimiento. ([#33](https://github.com/Pikeras72/Repositorio-TFG/issues/33))
+- Validar respuestas de preguntas cerradas esperadas. ([#34](https://github.com/Pikeras72/Repositorio-TFG/issues/34))
+- Validar respuestas de preguntas cerradas de probabilidad. ([#35](https://github.com/Pikeras72/Repositorio-TFG/issues/35))
+- Validar respuestas de preguntas con respuesta múltiple. ([#36](https://github.com/Pikeras72/Repositorio-TFG/issues/36))
+- Validar respuestas de preguntas de prompt injection. ([#37](https://github.com/Pikeras72/Repositorio-TFG/issues/37))
+
 ---
 
 <a name="tecnologías"></a>
 ### 3. Tecnologías
-
 
 
 [Subir⬆️](#top)
@@ -98,13 +132,11 @@ Esta versión incluye un avance en la validación, generación y limpieza de los
 ### 4. Bibliografía
 
 
-
 [Subir⬆️](#top)
 
 ---
 
 ## Licencia
-
 
 
 ## Autor
