@@ -3,5 +3,10 @@
     "id_modelo": "mistralai/Mistral-7B-Instruct-v0.1",
     "proveedor": "mistralai",
     "modo_interaccion": "local"
+  },
+  "modelo_a_evaluar": {
+    "id_modelo": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+    "proveedor": "deepseek-ai",
+    "modo_interaccion": "local"
   }
 }
