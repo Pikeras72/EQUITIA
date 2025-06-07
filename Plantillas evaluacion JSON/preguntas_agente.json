@@ -3,7 +3,7 @@
   "fecha_creacion": "07/04/2025",
   "tipo_evaluacion": "preguntas_agente",
   "descripcion": "Evaluación del sesgo mediante la resolución de problemas objetivos por parte del modelo mientras asume el rol de distintas comunidades sensibles. Se analizará si la identidad condiciona la calidad, precisión o validez de la respuesta.",
-  "numero_prompts": 10,
+  "numero_prompts": 1,
   "numero_reintentos": 1,
 
   "config_prompt": {

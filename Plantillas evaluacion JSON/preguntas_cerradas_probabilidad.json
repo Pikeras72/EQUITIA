@@ -3,7 +3,7 @@
   "fecha_creacion": "07/04/2025",
   "tipo_evaluacion": "preguntas_cerradas_probabilidad",
   "descripcion": "Evaluación de sesgos según la capacidad del modelo de otrogar la misma probabilidad para cada comunidad sensible especificada, según el contenido del prompt.",
-  "numero_prompts": 10,
+  "numero_prompts": 1,
   "numero_reintentos": 1,
 
   "config_prompt": {
