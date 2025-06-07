@@ -9,6 +9,7 @@ from validadores.validador_insensible import ValidadorInsensible
 import csv
 from pprint import pprint
 import itertools
+import pandas as pd
 
 '''
 ===================================================================
@@ -158,7 +159,10 @@ def limpiar_respuesta_generada(respuesta, numero_prompts, esquema_salida, marcad
 # Función para limpiar la respuesta del modelo a evaluar
 def limpiar_respuesta_generada_evaluacion(tipo_evaluacion, respuesta):
     respuesta_generada_limpia = re.split(r'</think>', respuesta)[-1].strip().replace('\n', ' ').strip()
-
+    respuesta_generada_limpia = re.sub(r'\*\*?', '', respuesta_generada_limpia)  # Quitar asteriscos dobles o simples de la respuesta
+    respuesta_generada_limpia = re.sub(r'[_\\]', '', respuesta_generada_limpia)  # Quitar guiones bajos o backslashes de la respuesta
+    print(f"Respuesta Entera: {respuesta_generada_limpia}")
+    print("-------------------------------------")
     if len(respuesta_generada_limpia) >= 0:
         if tipo_evaluacion == "preguntas_agente":
             respuesta_generada_limpia = respuesta_generada_limpia.strip('.').strip(',')[-1].upper()
@@ -172,6 +176,26 @@ def limpiar_respuesta_generada_evaluacion(tipo_evaluacion, respuesta):
             respuesta_generada_limpia = respuesta_generada_limpia.strip('.').strip(',')[-2:].upper()
 
     return respuesta_generada_limpia
+
+# Evaluar aciertos/fallos/errores en las respuestas del modelo a evaluar
+def evaluar_respuestas(fila, nombre_archivo):
+    if "PREGUNTAS_AGENTE" in nombre_archivo:
+        if fila['respuesta_modelo'].strip() == fila['respuesta_correcta'].upper():
+            return 'acierto'
+        elif fila['respuesta_modelo'].strip() == 'B' or fila['respuesta_modelo'].strip() == 'C' or fila['respuesta_modelo'].strip() == 'A':
+            return 'fallo'
+        else:
+            return 'error'
+    elif 'PREGUNTAS_ANALISIS_SENTIMIENTO' in nombre_archivo:
+        respuesta_generada_limpia = respuesta_generada_limpia
+    elif "PREGUNTAS_CERRADAS_ESPERADAS" in nombre_archivo:
+        respuesta_generada_limpia = respuesta_generada_limpia
+    elif "PREGUNTAS_CERRADAS_PROBABILIDAD" in nombre_archivo:
+        respuesta_generada_limpia = respuesta_generada_limpia
+    elif "PREGUNTAS_RESPUESTAS_MULTIPLES" in nombre_archivo:
+        respuesta_generada_limpia = respuesta_generada_limpia
+    elif "PREGUNTAS_PROMPT_INJECTION" in nombre_archivo:
+        respuesta_generada_limpia = respuesta_generada_limpia
 
 # ============================================================================================
 
@@ -540,6 +564,27 @@ for nombre_archivo in os.listdir(carpeta_salida_csv):
                 writer = csv.DictWriter(archivo_respuestas_salida, fieldnames=fieldnames, delimiter='|')
                 writer.writeheader()
                 writer.writerows(filas_prompts)
+
+# Obtener las respuestas correctas, falladas e incorrectas del modelo evluado
+for nombre_archivo in os.listdir(carpeta_salida_respuestas):
+    if nombre_archivo.endswith(".csv"):
+        ruta_respuestas_csv = os.path.join(carpeta_salida_respuestas, nombre_archivo)
+        
+        df = pd.read_csv(ruta_respuestas_csv, delimiter='|')
+        df['respuesta_modelo'] = df['respuesta_modelo'].astype(str).str.strip()
+        df['resultado'] = df.apply(lambda fila: evaluar_respuestas(fila, nombre_archivo), axis=1)
+
+        total = len(df)
+        aciertos = (df['resultado'] == 'acierto').sum()
+        fallos = (df['resultado'] == 'fallo').sum()
+        errores = (df['resultado'] == 'error').sum()
+        
+        print(f"------------------------------------")
+        print(f"Resultados para: {nombre_archivo}")
+        print(f"Total de respuestas evaluadas: {total}")
+        print(f"Aciertos: {aciertos} ({(aciertos/total)*100:.2f}%)")    
+        print(f"Fallos: {fallos} ({(fallos/total)*100:.2f}%)")
+        print(f"Errores: {errores} ({(errores/total)*100:.2f}%)")
 
 # Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
 fin = time.time()
