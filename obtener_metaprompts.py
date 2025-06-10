@@ -1,8 +1,9 @@
 import json
 import re
 import os
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification
 import torch
+import torch.nn.functional as F
 import time
 from datetime import datetime
 from validadores.validador_insensible import ValidadorInsensible
@@ -25,24 +26,59 @@ torch.backends.cudnn.benchmark = False  # Se asegura que los algoritmos usados s
 ===================================================================
 '''
 
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+df_acumulado = pd.DataFrame() # DataFrame con la info de todas las respuestas del modelo a evaluar y sus evaluaciones
+
+# Cargar configuración del modelo para generar los prompts
+with open('config_general.json', 'r', encoding='utf-8') as f:
+    config_general = json.load(f)
+
+modelo_id_generador = config_general['modelo_generador']['id_modelo']
+modo_modelo_generador = config_general['modelo_generador']['modo_interaccion']
+modelo_generador = None
+tokenizer_generador = None
+
+modelo_id_a_evaluar = config_general['modelo_a_evaluar']['id_modelo']
+modo_modelo_a_evaluar = config_general['modelo_a_evaluar']['modo_interaccion']
+modelo_a_evaluar = None
+tokenizer_a_evaluar = None
+
+modelo_id_analisis_de_sentimiento = config_general['modelo_analisis_de_sentimiento']['id_modelo']
+modo_modelo_analisis_de_sentimiento = config_general['modelo_analisis_de_sentimiento']['modo_interaccion']
+modelo_analisis_de_sentimiento = None
+tokenizer_analisis_sentimiento = None
 
 # ============================= Definición de funciones =============================================
 
 # Función para obtener un modelo a partir de su id
 def obtener_modelo(modelo_id, modo_modelo):
-    print("----------------------")
-    print(f"Se está intentando cargar el modelo: {modelo_id}, en modo: {modo_modelo}")
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype="float16",
-        bnb_4bit_quant_type="nf4"
-    )
-    tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
-    modelo = AutoModelForCausalLM.from_pretrained(modelo_id, quantization_config=bnb_config, low_cpu_mem_usage=True, device_map="auto")
-    print("----------------------")
-    print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo_modelo}")
-    return modelo, tokenizer
+    if modelo_id != '' or modo_modelo != '':
+        print("----------------------")
+        print(f"Se está intentando cargar el modelo: {modelo_id}, en modo: {modo_modelo}")
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype="float16",
+            bnb_4bit_quant_type="nf4"
+        )
+        tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
+        modelo = AutoModelForCausalLM.from_pretrained(modelo_id, quantization_config=bnb_config, low_cpu_mem_usage=True, device_map="auto")
+        print("----------------------")
+        print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo_modelo}")
+        return modelo, tokenizer
+    
+# Función para obtener un modelo de análisis de sentimiento a partir de su id
+def obtener_modelo_analisis_sentimiento(modelo_id, modo_modelo):
+    if modelo_id != '' or modo_modelo != '':
+        print("----------------------")
+        print(f"Se está intentando cargar el modelo: {modelo_id}, en modo: {modo_modelo}")
+        tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
+        modelo = AutoModelForSequenceClassification.from_pretrained(modelo_id, low_cpu_mem_usage=True)
+        modelo = modelo.to("cuda")
+        modelo.eval()
+        print("----------------------")
+        print(f"Usando actualmente modelo: {modelo_id}, en modo: {modo_modelo}")
+        return modelo, tokenizer
 
 # Función para aplanar un JSON (convierte estructuras anidadas en un solo nivel de claves)
 def flatten_json(y, prefix=''):
@@ -77,6 +113,32 @@ def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto=""):
     torch.cuda.empty_cache()  # Libera memoria GPU
 
     return respuesta[0]
+
+# Función para invocar modelo de analisis de sentimiento
+def invocar_modelo_analisis_sentimiento(prompt, modelo, tokenizer):
+    try:
+        # Validar la entrada
+        if not isinstance(prompt, str) or len(prompt.strip()) == 0:
+            print(f"⚠️ Prompt vacío o inválido: '{prompt}'")
+            return ""
+        
+        mensajes_tokenizados =  tokenizer(prompt, return_tensors="pt", truncation=True, padding=True,  max_length=512)
+        mensajes_tokenizados = {k: v.to("cuda") for k, v in mensajes_tokenizados.items()} # Pasar los mensajes a CUDA
+
+        with torch.no_grad(): # Con esto se evita guardar información para retropropagación o entrenamiento
+            outputs = modelo(**mensajes_tokenizados)
+            logits = outputs.logits
+            probs = F.softmax(logits, dim=-1)[0]
+
+        etiquetas = ['Negative', 'Neutral', 'Positive']
+        resultado = {etiqueta: round(prob.item(), 4) for etiqueta, prob in zip(etiquetas, probs)}
+
+        torch.cuda.empty_cache()  # Libera memoria GPU
+
+        return json.dumps(resultado)
+    except Exception as e:
+        print(f"\n🚨 Error procesando el prompt: {prompt}\n{e}")
+        raise e
 
 # Función para invocar modelo via API
 def invocar_modelo_api(texto_final, modelo_id, max_tokens, contexto=""):
@@ -187,7 +249,7 @@ def evaluar_respuestas(fila, nombre_archivo):
         else:
             return 'error'
     elif 'PREGUNTAS_ANALISIS_SENTIMIENTO' in nombre_archivo:
-        respuesta_generada_limpia = respuesta_generada_limpia
+        return invocar_modelo_analisis_sentimiento(fila['respuesta_modelo'].strip(), modelo_analisis_de_sentimiento, tokenizer_analisis_sentimiento)
     elif "PREGUNTAS_CERRADAS_ESPERADAS" in nombre_archivo:
         respuesta_generada_limpia = respuesta_generada_limpia
     elif "PREGUNTAS_CERRADAS_PROBABILIDAD" in nombre_archivo:
@@ -212,17 +274,6 @@ os.makedirs(carpeta_prompts_salida, exist_ok=True)                 # Crear la ca
 os.makedirs(carpeta_prompts_salida_erroneos, exist_ok=True)        # Crear la carpeta de prompts de salida erroneos si no existe
 os.makedirs(carpeta_salida_csv, exist_ok=True)                     # Crear la carpeta del datastet de prompts si no existe
 os.makedirs(carpeta_salida_respuestas, exist_ok=True)              # Crear la carpeta de las respuestas del modelo a evaluar si no existe
-
-# Cargar configuración del modelo para generar los prompts
-with open('config_general.json', 'r', encoding='utf-8') as f:
-    config_general = json.load(f)
-
-modelo_id_generador = config_general['modelo_generador']['id_modelo']
-modo_modelo_generador = config_general['modelo_generador']['modo_interaccion']
-
-modelo_id_a_evaluar = config_general['modelo_a_evaluar']['id_modelo']
-modo_modelo_a_evaluar = config_general['modelo_a_evaluar']['modo_interaccion']
-
 
 # Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
 inicio = time.time()
@@ -287,6 +338,8 @@ elif modo_modelo_generador == 'local':
     print("Modelo generador de prompts cargado correctamente")
     modelo_a_evaluar, tokenizer_a_evaluar = obtener_modelo(modelo_id_a_evaluar, modo_modelo_a_evaluar)
     print("Modelo a evaluar cargado correctamente")
+    modelo_analisis_de_sentimiento, tokenizer_analisis_sentimiento = obtener_modelo_analisis_sentimiento(modelo_id_analisis_de_sentimiento, modo_modelo_analisis_de_sentimiento)
+    print("Modelo analisis de sentimiento cargado correctamente")
 
 # Recorrer todos los archivos JSON dentro de la carpeta de plantillas de evaluación
 for archivo_json in plantillas_json:
@@ -553,11 +606,13 @@ for nombre_archivo in os.listdir(carpeta_salida_csv):
                     respuesta = invocar_modelo(prompt, modelo_a_evaluar, tokenizer_a_evaluar, max_tokens, contexto)
                     respuesta = limpiar_respuesta_generada_evaluacion(datos.get('tipo_evaluacion', ''), respuesta)
 
+                fila_aux['tipo_evaluacion'] = datos['tipo_evaluacion']  # Añadir una columna nueva a la fila con el tipo de evaluación actual
                 fila_aux['respuesta_modelo'] = respuesta  # Añadir una columna nueva a la fila con la respuesta del modelo
+                
                 filas_prompts.append(fila_aux)
             
             # Obtener las cabeceras actuales y añadirle una nueva columna para la respuesta del modelo
-            fieldnames = reader.fieldnames + ['respuesta_modelo']
+            fieldnames = reader.fieldnames + ['respuesta_modelo', 'tipo_evaluacion']
 
             # Escribir archivo con la nueva columna
             with open(ruta_respuestas_salida, mode='w', newline='', encoding='utf-8') as archivo_respuestas_salida:
@@ -570,21 +625,25 @@ for nombre_archivo in os.listdir(carpeta_salida_respuestas):
     if nombre_archivo.endswith(".csv"):
         ruta_respuestas_csv = os.path.join(carpeta_salida_respuestas, nombre_archivo)
         
-        df = pd.read_csv(ruta_respuestas_csv, delimiter='|')
-        df['respuesta_modelo'] = df['respuesta_modelo'].astype(str).str.strip()
-        df['resultado'] = df.apply(lambda fila: evaluar_respuestas(fila, nombre_archivo), axis=1)
+        df_resultados = pd.read_csv(ruta_respuestas_csv, delimiter='|')
+        df_resultados['respuesta_modelo'] = df_resultados['respuesta_modelo'].astype(str).str.strip()
+        df_resultados['resultado'] = df_resultados.apply(lambda fila: evaluar_respuestas(fila, nombre_archivo), axis=1)
 
-        total = len(df)
-        aciertos = (df['resultado'] == 'acierto').sum()
-        fallos = (df['resultado'] == 'fallo').sum()
-        errores = (df['resultado'] == 'error').sum()
-        
-        print(f"------------------------------------")
-        print(f"Resultados para: {nombre_archivo}")
-        print(f"Total de respuestas evaluadas: {total}")
-        print(f"Aciertos: {aciertos} ({(aciertos/total)*100:.2f}%)")    
-        print(f"Fallos: {fallos} ({(fallos/total)*100:.2f}%)")
-        print(f"Errores: {errores} ({(errores/total)*100:.2f}%)")
+        df_acumulado = pd.concat([df_acumulado, df_resultados], ignore_index=True)
+
+# Analizar los aciertos, errores, fallos y los diferentes tipos de evaluaciones 
+total = len(df_acumulado)
+aciertos = (df_acumulado['resultado'] == 'acierto').sum()
+fallos = (df_acumulado['resultado'] == 'fallo').sum()
+errores = (df_acumulado['resultado'] == 'error').sum()
+
+print(f"------------------------------------")
+print(f"Resultados Totales")
+print(f"Total de respuestas evaluadas: {total}")
+print(f"Aciertos: {aciertos} ({(aciertos/total)*100:.2f}%)")    
+print(f"Fallos: {fallos} ({(fallos/total)*100:.2f}%)")
+print(f"Errores: {errores} ({(errores/total)*100:.2f}%)")
+
 
 # Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
 fin = time.time()
