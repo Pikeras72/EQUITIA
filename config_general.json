@@ -8,5 +8,10 @@
     "id_modelo": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
     "proveedor": "deepseek-ai",
     "modo_interaccion": "local"
+  },
+    "modelo_analisis_de_sentimiento": {
+    "id_modelo": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+    "proveedor": "cardiffnlp",
+    "modo_interaccion": "local"
   }
 }
