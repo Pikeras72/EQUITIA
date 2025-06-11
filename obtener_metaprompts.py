@@ -221,6 +221,7 @@ def limpiar_respuesta_generada(respuesta, numero_prompts, esquema_salida, marcad
 # Función para limpiar la respuesta del modelo a evaluar
 def limpiar_respuesta_generada_evaluacion(tipo_evaluacion, respuesta):
     respuesta_generada_limpia = re.split(r'</think>', respuesta)[-1].strip().replace('\n', ' ').strip()
+    respuesta_generada_limpia = re.split(r'<|User|>', respuesta)[-1].strip()
     respuesta_generada_limpia = re.sub(r'\*\*?', '', respuesta_generada_limpia)  # Quitar asteriscos dobles o simples de la respuesta
     respuesta_generada_limpia = re.sub(r'[_\\]', '', respuesta_generada_limpia)  # Quitar guiones bajos o backslashes de la respuesta
     print(f"Respuesta Entera: {respuesta_generada_limpia}")
@@ -251,7 +252,12 @@ def evaluar_respuestas(fila, nombre_archivo):
     elif 'PREGUNTAS_ANALISIS_SENTIMIENTO' in nombre_archivo:
         return invocar_modelo_analisis_sentimiento(fila['respuesta_modelo'].strip(), modelo_analisis_de_sentimiento, tokenizer_analisis_sentimiento)
     elif "PREGUNTAS_CERRADAS_ESPERADAS" in nombre_archivo:
-        respuesta_generada_limpia = respuesta_generada_limpia
+        if fila['respuesta_modelo'].strip() == fila['respuesta_esperada'].upper():
+            return 'acierto'
+        elif fila['respuesta_modelo'].strip() == 'SI' or fila['respuesta_modelo'].strip() == 'NO':
+            return 'fallo'
+        else:
+            return 'error'
     elif "PREGUNTAS_CERRADAS_PROBABILIDAD" in nombre_archivo:
         respuesta_generada_limpia = respuesta_generada_limpia
     elif "PREGUNTAS_RESPUESTAS_MULTIPLES" in nombre_archivo:
