@@ -11,6 +11,7 @@ import csv
 from pprint import pprint
 import itertools
 import pandas as pd
+import concurrent.futures
 
 '''
 ===================================================================
@@ -96,23 +97,29 @@ def sustituir_claves(texto, datos):
     return re.sub(r'{([^{}]+)}', reemplazo, texto)
 
 # Función para invocar modelo en local
-def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto=""):
-    mensajes = [
-        {"role": "system", "content": contexto},
-        {"role": "user", "content": prompt}
-    ]
+def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto="", timeout=180):
+    def generar_respuesta():
+        mensajes = [
+            {"role": "system", "content": contexto},
+            {"role": "user", "content": prompt}
+        ]
+        mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
+        model_inputs = mensajes_tokenizados.to("cuda")
 
-    mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
-    model_inputs = mensajes_tokenizados.to("cuda")
+        with torch.no_grad(): # Con esto se evita guardar información para retropropagación o entrenamiento
+            respuesta_generada = modelo.generate(model_inputs, max_new_tokens=max_tokens, do_sample=True)
 
-    with torch.no_grad(): # Con esto se evita guardar información para retropropagación o entrenamiento
-        respuesta_generada = modelo.generate(model_inputs, max_new_tokens=max_tokens, do_sample=True)
-    
-    respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
+        respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
+        torch.cuda.empty_cache() # Libera memoria GPU
+        return respuesta[0]
 
-    torch.cuda.empty_cache()  # Libera memoria GPU
-
-    return respuesta[0]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futuro = executor.submit(generar_respuesta)
+        try:
+            return futuro.result(timeout=timeout)
+        except (concurrent.futures.TimeoutError, TimeoutError) as e:
+            print(f"⏰ Tiempo de espera agotado: {type(e).__name__}. Se devuelve respuesta vacía.")
+            return ""
 
 # Función para invocar modelo de analisis de sentimiento
 def invocar_modelo_analisis_sentimiento(prompt, modelo, tokenizer):
@@ -138,7 +145,7 @@ def invocar_modelo_analisis_sentimiento(prompt, modelo, tokenizer):
         return json.dumps(resultado)
     except Exception as e:
         print(f"\n🚨 Error procesando el prompt: {prompt}\n{e}")
-        raise e
+        return 'error'
 
 # Función para invocar modelo via API
 def invocar_modelo_api(texto_final, modelo_id, max_tokens, contexto=""):
@@ -259,7 +266,11 @@ def evaluar_respuestas(fila, nombre_archivo):
         else:
             return 'error'
     elif "PREGUNTAS_CERRADAS_PROBABILIDAD" in nombre_archivo:
-        respuesta_generada_limpia = respuesta_generada_limpia
+        try:
+            return max(0.0, min(1.0, round(float(fila['respuesta_modelo'].strip()), 1)))
+        except (ValueError, TypeError):
+            print(f"\n🚨 Error procesando la respuesta: {fila['respuesta_modelo'].strip()}")
+            return 'error'
     elif "PREGUNTAS_RESPUESTAS_MULTIPLES" in nombre_archivo:
         respuesta_generada_limpia = respuesta_generada_limpia
     elif "PREGUNTAS_PROMPT_INJECTION" in nombre_archivo:
@@ -626,7 +637,7 @@ for nombre_archivo in os.listdir(carpeta_salida_csv):
                 writer.writeheader()
                 writer.writerows(filas_prompts)
 
-# Obtener las respuestas correctas, falladas e incorrectas del modelo evluado
+# Obtener las respuestas correctas, falladas e incorrectas del modelo evaluado
 for nombre_archivo in os.listdir(carpeta_salida_respuestas):
     if nombre_archivo.endswith(".csv"):
         ruta_respuestas_csv = os.path.join(carpeta_salida_respuestas, nombre_archivo)
@@ -639,17 +650,22 @@ for nombre_archivo in os.listdir(carpeta_salida_respuestas):
 
 # Analizar los aciertos, errores, fallos y los diferentes tipos de evaluaciones 
 total = len(df_acumulado)
-aciertos = (df_acumulado['resultado'] == 'acierto').sum()
-fallos = (df_acumulado['resultado'] == 'fallo').sum()
-errores = (df_acumulado['resultado'] == 'error').sum()
+if total > 0:
+    aciertos = (df_acumulado['resultado'] == 'acierto').sum()
+    fallos = (df_acumulado['resultado'] == 'fallo').sum()
+    errores = (df_acumulado['resultado'] == 'error').sum()
 
-print(f"------------------------------------")
-print(f"Resultados Totales")
-print(f"Total de respuestas evaluadas: {total}")
-print(f"Aciertos: {aciertos} ({(aciertos/total)*100:.2f}%)")    
-print(f"Fallos: {fallos} ({(fallos/total)*100:.2f}%)")
-print(f"Errores: {errores} ({(errores/total)*100:.2f}%)")
-
+    print(f"------------------------------------")
+    print(f"Resultados Totales")
+    print(f"Total de respuestas evaluadas: {total}")
+    print(f"Aciertos: {aciertos} ({(aciertos/total)*100:.2f}%)")    
+    print(f"Fallos: {fallos} ({(fallos/total)*100:.2f}%)")
+    print(f"Errores: {errores} ({(errores/total)*100:.2f}%)")
+    print(f"------------------------------------")
+    print(df_acumulado)
+else:
+    print(f"------------------------------------")
+    print(f"No hay resultados")
 
 # Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
 fin = time.time()
