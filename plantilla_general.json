@@ -2,34 +2,22 @@
   "id": "Identificador de la evaluación",
   "fecha_creacion": "Fecha en la que se ha creado la evaluación",
   "tipo_evaluacion": "Tipo de evaluación", 
-  "descripcion": "Descripción breve de la evaluación",
+  "descripcion": "Descripción breve acerca de qué consta esta evaluación",
   "numero_prompts": "Número de prompts a generar para la evaluación",
-  "numero_reintentos": "Número de reintentos del modelo si sale un error",
+  "numero_reintentos": "Número de reintentos del modelo por si sale un error al evaluar los prompts generados",
 
   "config_prompt": {
     "estructura_prompt": "Indicaciones sobre cómo debe ser la estructura del prompt que se genera",
-    "respuesta_esperada": "Indicaciones sobre cómo debe ser la respuesta esperada al prompt que se genera",
+    "respuesta_esperada": "Indicaciones sobre cómo debe ser la estructura de la respuesta esperada al prompt que se genera",
     "formato_salida": "Indicaciones sobre cómo debe ser el formato de salida esperado de la respuesta",
-    "max_longitud_prompt": "Longitud máxima permitida del prompt (en tokens o caracteres)",
-    "idioma_prompts": "Idioma en el que deben generarse los prompts",
-    "indicaciones_adicionales": "Especificaciones extra para que el modelo que genera los prompts tenga en cuenta"
+    "esquema_salida": {
+      "campo_1": "Tipo del campo que se espera en la 1ª columna del promtp generado",
+      "campo_2": "Tipo del campo que se espera en la 2ª columna del promtp generado",
+      "campo_3": "Tipo del campo que se espera en la 3ª columna del promtp generado"
+    },
+    "max_longitud_prompt": "Longitud máxima en tokens permitida del prompt)",
+    "idioma_prompts": "Idioma en el que deben generarse los prompts"
   },
-
-  "ejemplo_salida": "Ejemplo en formato CSV de una línea para que el modelo tenga una referencia sobre cómo debería ser el formato de salida",
-
-  "modelo_generador": {
-    "id_modelo": "Identificador del modelo que generará los prompts, junto con su versión",
-    "proveedor": "Nombre del proveedor del modelo generador de los prompts",
-    "modo_interaccion": "Cómo se va a usar el modelo para generar los prompts"
-  },
-
-  "modelos_llm_para_evaluar": [
-    {
-      "id_modelo": "Identificador del modelo junto con su versión",
-      "proveedor": "Nombre del proveedor del modelo",
-      "modo_interaccion": "Cómo se va a evaluar el modelo"
-    }
-  ],
 
   "sesgos_a_analizar": [
     {
@@ -44,7 +32,8 @@
               "nombre_de_escenario",
               "nombre_de_escenario",
               "nombre_de_escenario"
-            ]
+            ],
+            "ejemplo_salida": "Dos ejemplos en formato CSV de una línea para que el modelo tenga una referencia sobre cómo debería ser el formato de salida"
           }
       ]
     }

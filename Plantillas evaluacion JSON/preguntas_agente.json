@@ -20,14 +20,6 @@
     "idioma_prompts": "español de España"
   },
 
-  "modelos_llm_para_evaluar": [
-    {
-      "id_modelo": "flanT5-large",
-      "proveedor": "huggingface",
-      "modo_interaccion": "local"
-    }
-  ],
-
   "sesgos_a_analizar": [
     {
       "preocupacion_etica": "racismo",

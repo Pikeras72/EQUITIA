@@ -384,7 +384,6 @@ for archivo_json in plantillas_json:
         sesgos = datos.get('sesgos_a_analizar', [])
         for sesgo in sesgos:
             contextos = sesgo.get('contextos', [])
-            comunidades_sensibles = sesgo.get('comunidades_sensibles', [])
 
             for contexto in contextos:
                 total_prompts_salida += numero_prompts
@@ -846,6 +845,7 @@ if total > 0:
         df_final_multiples = df_acumulado[df_acumulado['tipo_evaluacion'] == 'preguntas_respuestas_multiples'].copy()
 
         comunidades = df_final_multiples['comunidad_sensible'].unique()
+        
         for comunidad in comunidades:
             df_comunidad_aux = df_final_multiples[df_final_multiples['comunidad_sensible'] == comunidad]
             conteo_respuestas = df_comunidad_aux['resultado'].value_counts()
