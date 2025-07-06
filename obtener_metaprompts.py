@@ -4,13 +4,12 @@ import os
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification
 import torch
 import torch.nn.functional as F
-import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from validadores.validador_insensible import ValidadorInsensible
 import csv
 from pprint import pprint
 import pandas as pd
-import concurrent.futures
+import multiprocessing
 from scipy.spatial.distance import euclidean
 
 '''
@@ -98,30 +97,43 @@ def sustituir_claves(texto, datos):
         return str(datos.get(clave, f'{{{clave}}}'))  # Si no se encuentra, se deja como estaba
     return re.sub(r'{([^{}]+)}', reemplazo, texto)
 
+# Función para generar la respuesta a un prompt
+def generar_respuesta_worker(prompt, contexto, modelo, tokenizer, max_tokens, return_dict):
+    mensajes = [
+        {"role": "system", "content": contexto},
+        {"role": "user", "content": prompt}
+    ]
+    mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
+    model_inputs = mensajes_tokenizados.to("cuda")
+
+    with torch.no_grad():
+        respuesta_generada = modelo.generate(model_inputs, max_new_tokens=max_tokens, do_sample=True)
+
+    respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
+    return_dict['respuesta'] = respuesta[0]
+    torch.cuda.empty_cache()
+
 # Función para invocar modelo en local
 def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto="", timeout=180):
-    def generar_respuesta():
-        mensajes = [
-            {"role": "system", "content": contexto},
-            {"role": "user", "content": prompt}
-        ]
-        mensajes_tokenizados = tokenizer.apply_chat_template(mensajes, return_tensors="pt")
-        model_inputs = mensajes_tokenizados.to("cuda")
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+    proceso = multiprocessing.Process(
+        target=generar_respuesta_worker,
+        args=(prompt, contexto, modelo, tokenizer, max_tokens, return_dict)
+    )
 
-        with torch.no_grad(): # Con esto se evita guardar información para retropropagación o entrenamiento
-            respuesta_generada = modelo.generate(model_inputs, max_new_tokens=max_tokens, do_sample=True)
+    print("------------------------------------------------------------------")
+    print(f"⏳ Iniciando generación de respuesta con timeout de {timeout}s...")
+    proceso.start()
+    proceso.join(timeout)
 
-        respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
-        torch.cuda.empty_cache() # Libera memoria GPU
-        return respuesta[0]
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futuro = executor.submit(generar_respuesta)
-        try:
-            return futuro.result(timeout=timeout)
-        except (concurrent.futures.TimeoutError, TimeoutError) as e:
-            print(f"⏰ Tiempo de espera agotado: {type(e).__name__}. Se devuelve respuesta vacía.")
-            return ""
+    if proceso.is_alive():
+        print("⏰ Tiempo de espera agotado. Terminando generación...")
+        proceso.terminate()
+        proceso.join()
+        return ""
+    else:
+        return return_dict.get('respuesta', "")
 
 # Función para invocar modelo de analisis de sentimiento
 def invocar_modelo_analisis_sentimiento(prompt, modelo, tokenizer):
@@ -330,12 +342,6 @@ os.makedirs(carpeta_prompts_salida_erroneos, exist_ok=True)        # Crear la ca
 os.makedirs(carpeta_salida_csv, exist_ok=True)                     # Crear la carpeta del datastet de prompts si no existe
 os.makedirs(carpeta_salida_respuestas, exist_ok=True)              # Crear la carpeta de las respuestas del modelo a evaluar si no existe
 
-# Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
-inicio = time.time()
-fecha_inicio = datetime.now()
-print("----------------------")
-print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%Y-%m-%d %H:%M:%S')}")
-
 # Cargar el texto base con llaves a reemplazar
 with open('meta_prompt.txt', 'r', encoding='utf-8') as f:
     texto_base = f.read()
@@ -383,6 +389,11 @@ respuesta = input("¿Quieres comenzar el proceso de generación de prompts? ([Y]
 if respuesta == 'n':
     print("Proceso cancelado por el usuario.")
     exit(0)  # Termina el programa
+
+# Mostrar por pantalla el momento exacto en el que comienza el análisis de las plantillas JSON
+fecha_inicio = datetime.now()
+print("----------------------")
+print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
 
 # Configuración para inicializar el modelo generador según el modo elegido
 if modo_modelo_generador == 'API':
@@ -878,12 +889,10 @@ else:
     print(f"No hay resultados")
 
 # Mostrar por pantalla el momento exacto en el que termina la generación de los csv con los prompts
-fin = time.time()
 fecha_fin = datetime.now()
-duracion_segundos = int(fin - inicio)
-minutos, segundos = divmod(duracion_segundos, 60)
+duracion = fecha_fin - fecha_inicio # aquí se crea un objeto tipo timedelta
 print("----------------------")
 print(f"Finalmente se han generado {total_prompts_salida_reales} prompts únicos.")
 print(f"Finalmente se han realizado {total_llamadas_generador_reales} llamadas al modelo para generar los prompts.")
-print(f"\n🕒 Fin del proceso: {fecha_fin.strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"⏱️ Duración total: {minutos} minutos y {segundos} segundos")
+print(f"\n🕒 Fin del proceso: {fecha_fin.strftime('%d-%m-%Y %H:%M:%S')}")
+print(f"⏱️ Duración total: {str(duracion).split('.')[0]}")
