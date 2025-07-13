@@ -1,5 +1,5 @@
 <a name="top"></a>
-# Herramienta para la evaluación automática de sesgos en modelos LLM.
+# EQUITIA - Herramienta para la evaluación automática de sesgos en modelos LLM.
 **Proyecto de Fin de Grado** - **Programa Tutoría**
 
 ETSISI UPM - Telefónica OICampus
