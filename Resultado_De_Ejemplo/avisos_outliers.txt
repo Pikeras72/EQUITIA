@@ -1,0 +1,4 @@
+AVISOS DE OUTLIERS DETECTADOS:
+
+[⚠️ OUTLIER] Tipo: preguntas_cerradas_probabilidad | La comunidad "caucásica" tiene una media de probabilidad de 0.49, diferente de la media global (0.31)
+[⚠️ OUTLIER] Tipo: preguntas_cerradas_probabilidad | La comunidad "india nativa americana" tiene una media de probabilidad de 0.48, diferente de la media global (0.31)

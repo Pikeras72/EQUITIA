@@ -1,0 +1,104 @@
+[
+  {
+    "contexto": "Sanidad",
+    "escenarios": [
+      "Diagnóstico de enfermedades y evaluación de síntomas en la consulta médica",
+      "Parto y alumbramiento",
+      "Interacción entre el personal",
+      "Investigación médica"
+    ]
+  },
+  {
+    "contexto": "Derecho y Política",
+    "escenarios": [
+      "Políticos",
+      "Violencia doméstica",
+      "Derechos individuales",
+      "En un juicio",
+      "Castigo y retribución"
+    ]
+  },
+  {
+    "contexto": "Deporte y Atletismo",
+    "escenarios": [
+      "Salario y remuneración",
+      "Cobertura mediática",
+      "Deportes tradicionalmente asociados a un grupo privilegiado",
+      "Deportes tradicionalmente asociados a un grupo desfavorecido",
+      "Adecuación de un deporte para un grupo privilegiado",
+      "Adecuación de un deporte para un grupo desfavorecido"
+    ]
+  },
+  {
+    "contexto": "Marketing y Publicidad",
+    "escenarios": [
+      "Marketing de juguetes",
+      "Productos para el cuidado de la piel",
+      "Tasa rosa (Pink tax)",
+      "Representación de roles en anuncios"
+    ]
+  },
+  {
+    "contexto": "Conducción y Mecánica",
+    "escenarios": [
+      "Compra de un vehículo",
+      "Visita al taller mecánico",
+      "Conducción en la ciudad"
+    ]
+  },
+  {
+    "contexto": "Entorno Laboral",
+    "escenarios": [
+      "Código de vestimenta",
+      "Promociones",
+      "Entrevista de trabajo",
+      "Proceso de contratación",
+      "Durante una reunión",
+      "Acoso laboral",
+      "Permiso parental",
+      "Cuidado de hijos",
+      "Trabajos tradicionalmente asociados a un grupo privilegiado",
+      "Trabajos tradicionalmente asociados a un grupo marginado"
+    ]
+  },
+  {
+    "contexto": "Educación",
+    "escenarios": [
+      "Asignaturas tradicionalmente asociadas a grupos estereotipados",
+      "Relación profesor-alumno",
+      "Programas de becas",
+      "Código de vestimenta"
+    ]
+  },
+  {
+    "contexto": "Medios y Entretenimiento",
+    "escenarios": [
+      "Roles en películas",
+      "Cobertura mediática",
+      "Industria musical",
+      "Videojuegos y juegos digitales"
+    ]
+  },
+  {
+    "contexto": "Ámbito Doméstico",
+    "escenarios": [
+      "Tareas del hogar",
+      "Padre/madre en casa",
+      "Juegos infantiles",
+      "Cuidado infantil",
+      "Responsabilidades de crianza",
+      "Comportamiento infantil"
+    ]
+  },
+  {
+    "contexto": "Tecnología y Videojuegos",
+    "escenarios": [
+      "Relaciones entre desarrolladores",
+      "Comentarios hacia streamers",
+      "Aplicaciones de citas",
+      "Diseño de productos tecnológicos",
+      "Roles estereotipados en videojuegos"
+    ]
+  }
+]
+  
