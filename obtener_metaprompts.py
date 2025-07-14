@@ -11,6 +11,7 @@ import csv
 from pprint import pprint
 import pandas as pd
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from scipy.spatial.distance import euclidean
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -59,7 +60,7 @@ modelo_analisis_de_sentimiento = None
 tokenizer_analisis_sentimiento = None
 
 abreviaciones = {
-    "preguntas_multiples": "PM",
+    "preguntas_respuestas_multiples": "PRM",
     "preguntas_cerradas_probabilidad": "PCP",
     "preguntas_prompt_injection": "PPI",
     "preguntas_agente": "PA",
@@ -128,25 +129,31 @@ def generar_respuesta_thread(prompt, contexto, modelo, tokenizer, max_tokens, re
             respuesta_generada = modelo.generate(mensajes_tokenizados, max_new_tokens=max_tokens, do_sample=True)
         respuesta = tokenizer.batch_decode(respuesta_generada, skip_special_tokens=True)
         result_holder.append(respuesta[0])
-        torch.cuda.empty_cache()
     except Exception as e:
         print(f"⚠️ Error generando respuesta: {e}")
         result_holder.append("")
+    finally:
+        del mensajes_tokenizados, respuesta_generada
+        torch.cuda.empty_cache()
 
 # Función para invocar modelo en local
 def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto="", timeout=180):
-    result_holder = []
-    hilo = threading.Thread(target=generar_respuesta_thread, args=(prompt, contexto, modelo, tokenizer, max_tokens, result_holder))
     print("------------------------------------------------------------------")
     print(f"⏳ Iniciando generación de respuesta con timeout de {timeout}s...", flush=True)
-    hilo.start()
-    hilo.join(timeout)
 
-    if hilo.is_alive():
-        print("⏰ Tiempo de espera agotado. Terminando generación...", flush=True)
-        return ""
-    else:
+    def tarea():
+        result_holder = []
+        generar_respuesta_thread(prompt, contexto, modelo, tokenizer, max_tokens, result_holder)
         return result_holder[0] if result_holder else ""
+    
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(tarea)
+        try:
+            resultado = future.result(timeout=timeout)
+            return resultado
+        except FuturesTimeoutError:
+            print("⏰ Tiempo de espera agotado. Terminando generación...", flush=True)
+            return ""
 
 # Función para invocar modelo de analisis de sentimiento
 def invocar_modelo_analisis_sentimiento(prompt, modelo, tokenizer):
@@ -282,7 +289,7 @@ def limpiar_respuesta_generada_evaluacion(tipo_evaluacion, respuesta):
             respuesta_generada_limpia = respuesta_generada_limpia.strip('.').strip(',')[0].upper()
         elif tipo_evaluacion == "preguntas_prompt_injection":
             respuesta_generada_limpia = respuesta_generada_limpia.strip('.').strip(',')[:2].upper()
-
+    
     return respuesta_generada_limpia
 
 # Evaluar aciertos/fallos/errores en las respuestas del modelo a evaluar
@@ -419,7 +426,7 @@ print(f"- En el mejor de los casos (estimado): {total_llamadas_mejor_caso} llama
 print(f"- En el peor de los casos (estimado): {total_llamadas_peor_caso} llamadas, con una duración máxima de {formatear_tiempo(tiempo_max_peor)}")
 
 print("\nEstimación del número de llamadas que se realizarán al modelo a evaluar y su duración:")
-print(f"Número de llamadas a realizar (estimado): {total_llamadas_mejor_caso} llamadas, con una duración máxima de {formatear_tiempo(tiempo_max_evaluacion)}")
+print(f"Número de llamadas a realizar (estimado): {total_llamadas_evaluacion} llamadas, con una duración máxima de {formatear_tiempo(tiempo_max_evaluacion)}")
 
 # Preguntar al usuario si quiere continuar
 print("----------------------")
@@ -880,7 +887,7 @@ if total > 0:
             df_bloque['z_probabilidad'] = z_scores
 
             # Clasificación de outliers emocionales
-            df_bloque['z_outlier'] = df_bloque.apply(lambda row: ('superior' if row['z_probabilidad'] > 1.25 else 'inferior' if row['z_probabilidad'] < -1.25 else 'neutral'), axis=1)
+            df_bloque['z_outlier'] = df_bloque.apply(lambda row: ('superior' if row['z_probabilidad'] > 1.5 else 'inferior' if row['z_probabilidad'] < -1.5 else 'neutral'), axis=1)
             
             print(f"------------------------------------")
             print(df_bloque)
@@ -1061,12 +1068,32 @@ if total > 0:
                 ax=axes[1],
                 s=60
             )
-            axes[1].set_yticks([])
+            for i, row in datos.iterrows():
+                if row['z_outlier'] != 'ninguno':
+                    nombre = row['comunidad_sensible']
+                    axes[1].annotate(
+                        nombre,
+                        (i, 0),
+                        textcoords="offset points",
+                        xytext=(0, -80),
+                        ha='center',
+                        fontsize=7,
+                        rotation=90,
+                        clip_on=False
+                    )
             axes[1].set_title("Clasificación de outliers análisis sentimiento")
-            axes[1].legend(title="Outlier")
-            axes[1].set_xlabel("Índice")
+            axes[1].legend(
+                title="Outlier",
+                bbox_to_anchor=(0.5, 1.25),
+                loc='lower center',
+                ncol=4,
+                frameon=True
+            )
+            axes[1].set_xticks([])
+            axes[1].set_xlabel("")
             
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            plt.tight_layout(rect=[0, 0.01, 1, 0.95])
+            plt.subplots_adjust(top=0.88)
             plt.savefig(os.path.join(carpeta_graficos, 'outliers_analisis_sentimiento.png'))
 
     # Solo si hay datos para outliers de preguntas_cerradas_probabilidad
@@ -1092,12 +1119,32 @@ if total > 0:
                 ax=axes[1],
                 s=60
             )
-            axes[1].set_yticks([])
-            axes[1].set_title("Clasificación de outliers (probabilidad)")
-            axes[1].legend(title="Outlier probabilidad")
-            axes[1].set_xlabel("Índice")
-
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            for i, row in datos.iterrows():
+                if row['z_outlier'] != 'neutral':
+                    nombre = row['comunidad_sensible']
+                    axes[1].annotate(
+                        nombre,
+                        (i, 0),
+                        textcoords="offset points",
+                        xytext=(0, -80),
+                        ha='center',
+                        fontsize=7,
+                        rotation=90,
+                        clip_on=False
+                    )
+            axes[1].set_title("Clasificación de outliers análisis sentimiento")
+            axes[1].legend(
+                title="Outlier",
+                bbox_to_anchor=(0.5, 1.25),
+                loc='lower center',
+                ncol=4,
+                frameon=True
+            )
+            axes[1].set_xticks([])
+            axes[1].set_xlabel("")
+            
+            plt.tight_layout(rect=[0, 0.01, 1, 0.95])
+            plt.subplots_adjust(top=0.88)
             plt.savefig(os.path.join(carpeta_graficos, 'outliers_cerradas_probabilidad.png'))
 
     # Solo si hay datos para outliers de preguntas_respuestas_multiples
@@ -1135,12 +1182,33 @@ if total > 0:
                 ax=axes[2],
                 s=70
             )
+            for i, row in datos.iterrows():
+                if row['z_outlier'] != 'neutral':
+                    nombre = row['comunidad_sensible']
+                    axes[2].annotate(
+                        nombre,
+                        (i, 0),
+                        textcoords="offset points",
+                        xytext=(0, -80),
+                        ha='center',
+                        fontsize=7,
+                        rotation=90,
+                        clip_on=False
+                    )
             axes[2].set_yticks([])
             axes[2].set_title("Clasificación de outliers")
-            axes[2].legend(title="Outlier", bbox_to_anchor=(1.05, 1), loc='upper left')
-            axes[2].set_xlabel("Índice")
+            axes[2].legend(
+                title="Outlier",
+                bbox_to_anchor=(0.5, 1.25),
+                loc='lower center',
+                ncol=2,
+                frameon=True
+            )
+            axes[2].set_xticks([])
+            axes[2].set_xlabel("")
 
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+            plt.subplots_adjust(top=0.88)
             plt.savefig(os.path.join(carpeta_graficos, 'outliers_respuestas_multiples.png'))
     
     # Mapa interactivo
