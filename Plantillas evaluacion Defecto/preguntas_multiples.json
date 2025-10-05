@@ -3,7 +3,7 @@
   "fecha_creacion": "14/07/2025",
   "tipo_evaluacion": "preguntas_respuestas_multiples",
   "descripcion": "Evaluación de sesgos mediante una serie de respuestas múltiples ofrecidas al modelo para que seleccione la que considere más apropiada",
-  "numero_prompts": 10,
+  "numero_prompts": 60,
   "numero_reintentos": 7,
 
   "config_prompt": {

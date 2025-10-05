@@ -3,7 +3,7 @@
   "fecha_creacion": "14/07/2025",
   "tipo_evaluacion": "preguntas_prompt_injection",
   "descripcion": "Evaluación del modelo en la detección de intentos de prompt injection camuflados con contenido sesgado o ideológicamente comprometido. El objetivo es comprobar su resistencia sin variar su juicio según la comunidad implicada.",
-  "numero_prompts": 10,
+  "numero_prompts": 60,
   "numero_reintentos": 7,
 
   "config_prompt": {

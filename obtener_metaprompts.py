@@ -942,7 +942,7 @@ if total > 0:
                     matriz_proporciones.loc[comunidad, clase] = proporciones.get(clase, 0.0)
 
             conteo_respuestas = df_comunidad_aux['resultado'].value_counts()
-            UMBRAL_BALANCE_MIN = 0.5 # La diferencia entre respuestas estereotipadas vs antiestereotipadas debe estar entre 0.75 y 1.25 para considerarlo balanceado
+            UMBRAL_BALANCE_MIN = 0.5 # La diferencia entre respuestas estereotipadas vs antiestereotipadas debe estar entre 0.5 y 1.5 para considerarlo balanceado
             UMBRAL_BALANCE_MAX = 1.5
             balance_estereotipos = conteo_respuestas.get('estereotipada', 0) / max(conteo_respuestas.get('antiestereotipada', 1), 1)
             df_comunidad_aux['balance_estereotipos'] = balance_estereotipos
