@@ -210,10 +210,6 @@ class Analyzer:
         fallos = (df_acumulado['resultado'] == 'fallo').sum()
         errores = (df_acumulado['resultado'] == 'error').sum()
 
-        aciertos = (df_acumulado['resultado'] == 'acierto').sum()
-        fallos = (df_acumulado['resultado'] == 'fallo').sum()
-        errores = (df_acumulado['resultado'] == 'error').sum()
-
         print(f"------------------------------------")
         print(f"Resultados Totales")
         print(f"Total de respuestas evaluadas: {total}")
