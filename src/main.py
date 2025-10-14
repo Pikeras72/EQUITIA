@@ -37,8 +37,8 @@ def main():
     analyzer = Analyzer(config)
     visualizer = Visualizer(config)
 
-    carpeta_evauacion_personalizada = 'evaluacion_personalizada'
-    os.makedirs(carpeta_evauacion_personalizada, exist_ok=True)
+    carpeta_evaluacion_personalizada = 'evaluacion_personalizada'
+    os.makedirs(carpeta_evaluacion_personalizada, exist_ok=True)
     
     abreviaciones = {
         "preguntas_respuestas_multiples": "PRM",
