@@ -1,0 +1,35 @@
+# Núcleo de ciencia de datos y CSV
+pandas>=2.2.2
+numpy>=1.26.4
+
+# Validación de esquemas
+cerberus>=1.3.5
+
+# Progreso y utilidades
+tqdm>=4.66.4
+
+# Entrada/Salida (Excel, HTTP)
+openpyxl>=3.1.2
+
+# Visualización (gráficos)
+matplotlib>=3.8.4
+seaborn>=0.13.2
+
+# Modelado LLM (Transformers y utilidades)
+transformers>=4.41.0
+accelerate>=0.30.1
+safetensors>=0.4.3
+huggingface_hub>=0.23.0
+sentencepiece>=0.2.0
+
+# Backend de ejecución (ajusta según tu entorno/CUDA)
+torch>=2.2.0
+
+# Cuantización 4/8-bit (requerido para BitsAndBytesConfig; opcional)
+bitsandbytes>=0.43.1
+
+# Opcionales según uso (descomenta si los usas)
+# HTTP/API (llamadas a servicios externos)
+# requests>=2.31.0
+# Gestión de variables de entorno (API keys)
+# python-dotenv>=1.0.1

@@ -7,6 +7,8 @@ ETSISI UPM - Telefónica OICampus
 ## Tabla de contenidos
 * [Descripción](#descripción)
 * [Versiones](#versiones)
+* [Getting Started](#getting_started)
+* [Requirements](#requirements)
 * [Tecnologías](#tecnologías)
 * [Bibliografía](#bibliografía)
 
@@ -19,7 +21,7 @@ Ahora más que nunca necesitamos conocer cómo se comportan los modelos LLM y c�
 
 Para lograr entender cómo de sesgado está un modelo LLM, se ha desarrolla esta herramienta que permite entender de un simple vistazo y, en función de una serie de: contextos, escenarios, comunidades sensibles y sesgos, cómo de sesgado está un modelo, ofreciendo valores realistas y cuantificables.
 
-![Diagrama de Flujo](https://github.com/Pikeras72/EQUITIA/blob/f881e24de87d864e365367e6e9199661fb5600ef/diagramas/Diagrama%20de%20flujo%20Proceso%20TFG.png)
+![Diagrama de Flujo](https://github.com/Pikeras72/EQUITIA/blob/f881e24de87d864e365367e6e9199661fb5600ef/docs/diagrams/diagrama_de_flujo.png)
 
 [Subir⬆️](#top)
 
@@ -120,8 +122,91 @@ Así como un esquema visual del proceso completo en forma de diagrama de flujo.
 
 ---
 
+<a name="getting_started"></a>
+### 3. Getting Started
+
+Este apartado describe el flujo de uso del proyecto de forma resumida y operativa.
+
+- Prerrequisitos
+  - Python 3.10+ y pip instalados.
+  - Modelo LLM local previamente descargado y accesible por la herramienta.
+  - Plantillas de evaluación en formato .json (con contextos, escenarios, comunidades sensibles y sesgos).
+  - Conectividad a Internet opcional si en el futuro se habilita generación vía API.
+  - Opcional: semilla para reproducibilidad (soportado desde v0.2).
+
+- Flujo de uso (paso a paso)
+  0) Elegir qué tipo de evaluación se prefiere, si usar los sesgos/escenarios y prompts por defecto, o definir unos propios.
+  1) Si se elije la evaluación personalizada: Preparar plantillas .json con los tipos de evaluación y sus parámetros.
+  2) Si se elije la evaluación personalizada: Iniciar el proceso de generación del dataset. 
+    La herramienta:
+     - Calcula y muestra el número total de prompts a generar (v0.3) para confirmación.
+     - Establece un rol base del modelo generador: “Eres un generador de prompts …” (v0.2+).
+     - Aplica, si procede, la semilla de reproducibilidad (v0.2+).
+  3) Si se elije la evaluación personalizada: Se rellenan los metaprompts usando cada plantilla y combinación de sesgo/escenario/contexto.
+  4) Si se elije la evaluación personalizada: Generación de CSVs por cada combinación.
+  5) Si se elije la evaluación personalizada: Limpieza automática de los CSV generados (v0.3):
+     - Eliminación de introducciones/conclusiones y filas erróneas.
+     - Inserción de cabecera si falta y limpieza de caracteres extraños.
+     - Sustitución de marcadores {...} por comunidades sensibles (v0.2+).
+  6) Si se elije la evaluación personalizada: Informe previo de calidad por CSV (v0.3):
+     - Porcentaje de filas correctas, modificadas, eliminadas y añadidas.
+  7) Si se elije la evaluación personalizada: Validación de estructura con esquema (Cerberus) con mejoras de mayúsc./minúsc. (v0.3).
+  8) Si se elije la evaluación personalizada: Reintentos, se regeneran los casos no válidos hasta agotar intentos permitidos (v0.2+).
+  9) Si se elije la evaluación personalizada: Consolidación, se obtiene un conjunto de prompts únicos, limpios y validados en la carpeta de salida configurada.
+  10) Generación de respuestas del modelo a evaluar y su validación por tipo de evaluación.
+  11) Generación de gráficos, detección de outliers y exportación de las respuestas y los resultados a ficheros .txt, .csv y .xlsx
+
+- Entradas y salidas
+  - Entrada: plantillas .json y (opcional) parámetros de ejecución (semilla, reintentos, rol), dependiendo de la evaluación elegida.
+  - Salida: CSVs de prompts limpios y validados, más un informe de calidad por fichero.
+
+- Opciones de configuración habituales
+  - Semilla para reproducibilidad (v0.2+).
+  - Número máximo de reintentos de generación de filas no válidas (v0.2+). (Evaluación personalizada)
+  - Rol del modelo generador (v0.2+). (Evaluación personalizada)
+  - Selección del modelo generador. (Evaluación personalizada)
+
+- Referencia visual
+  - Ver el diagrama de flujo del proceso: consultar la imagen de “Diagrama de Flujo” en la sección Descripción.
+
+[Subir⬆️](#top)
+
+---
+
+<a name="requirements"></a>
+### 4. Requirements
+
+Requisitos para ejecutar el proyecto y preparación del entorno.
+
+- Sistema
+  - Python 3.10+ y pip.
+  - Windows, Linux o macOS.
+  - Recomendado: entorno virtual (venv).
+  - GPU CUDA si usas modelos locales.
+
+- Dependencias
+  - Instalar desde el fichero requirements.txt:
+    - pip install -r requirements.txt
+
+- Modelos
+  - Opción local: tener descargado un modelo LLM accesible por la herramienta.
+  - Opción API (planificada): necesitarás credenciales del proveedor y configurar la variable de entorno correspondiente (por ejemplo: API_KEY).
+
+- Pasos rápidos
+  1) Clonar el repositorio.
+  2) Crear y activar un entorno virtual:
+     - python -m venv .venv
+     - Windows: .venv\Scripts\activate
+     - macOS/Linux: source .venv/bin/activate
+  3) Instalar dependencias: pip install -r requirements.txt
+  4) Continúa con el flujo descrito en “Getting Started”.
+
+[Subir⬆️](#top)
+
+---
+
 <a name="tecnologías"></a>
-### 3. Tecnologías
+### 5. Tecnologías
 
 
 [Subir⬆️](#top)
@@ -129,7 +214,7 @@ Así como un esquema visual del proceso completo en forma de diagrama de flujo.
 ---
 
 <a name="bibliografía"></a>
-### 4. Bibliografía
+### 6. Bibliografía
 
 
 [Subir⬆️](#top)
