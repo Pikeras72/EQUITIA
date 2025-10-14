@@ -175,7 +175,7 @@ class Visualizer:
                     rotation=90,
                     clip_on=False
                 )
-        axes[1].set_title("Clasificación de outliers análisis sentimiento")
+        axes[1].set_title("Clasificación de outliers cerradas probabilidad")
         axes[1].legend(
             title="Outlier",
             bbox_to_anchor=(0.5, 1.25),
