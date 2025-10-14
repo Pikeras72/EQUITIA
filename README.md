@@ -21,7 +21,7 @@ Ahora más que nunca necesitamos conocer cómo se comportan los modelos LLM y c�
 
 Para lograr entender cómo de sesgado está un modelo LLM, se ha desarrolla esta herramienta que permite entender de un simple vistazo y, en función de una serie de: contextos, escenarios, comunidades sensibles y sesgos, cómo de sesgado está un modelo, ofreciendo valores realistas y cuantificables.
 
-![Diagrama de Flujo](https://github.com/Pikeras72/EQUITIA/blob/f881e24de87d864e365367e6e9199661fb5600ef/docs/diagrams/diagrama_de_flujo.png)
+![Diagrama de Flujo](docs/diagrams/diagrama_de_flujo.png)
 
 [Subir⬆️](#top)
 
