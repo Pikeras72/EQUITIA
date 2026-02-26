@@ -2,7 +2,7 @@ import torch
 import os
 import json
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from config.seed_utils import set_seed
+from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 
@@ -42,9 +42,10 @@ def invocar_modelo(prompt, modelo, tokenizer, max_tokens=5000, contexto="", time
         future = executor.submit(tarea)
         try:
             resultado = future.result(timeout=timeout)
+            print("✅ Respuesta del modelo obtenida dentro del tiempo límite.", flush=True)
             return resultado
         except FuturesTimeoutError:
-            print("⏰ Tiempo de espera agotado. Terminando generación...", flush=True)
+            print(f"⏰ Tiempo de espera agotado ({timeout}s). Terminando generación...", flush=True)
             return ""
 
 # Calcula el tamaño de bloques por comunidad sensible para evaluar por grupos

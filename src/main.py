@@ -5,7 +5,7 @@ from modules.prompt_generator import PromptGenerator
 from modules.evaluator import Evaluator
 from modules.analyzer import Analyzer
 from modules.visualizer import Visualizer
-from modules.utils import (
+from utils.helpers import (
     formatear_tiempo,
     invocar_modelo,
     calcular_array_comunidades,
@@ -20,8 +20,8 @@ import pandas as pd
 import csv
 import json
 import shutil
-from datetime import datetime
-from config.seed_utils import set_seed
+import datetime
+from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 
@@ -66,7 +66,7 @@ def main():
         carpeta_prompts_salida_erroneos = 'evaluacion_personalizada/prompts_generados_csv_erroneos'
         carpeta_salida_csv = 'evaluacion_personalizada/prompts_dataset'
         carpetas = [
-            carpeta_plantillas,
+            carpeta_graficos,
             carpeta_metaprompts_salida,
             carpeta_prompts_salida,
             carpeta_prompts_salida_erroneos,
@@ -134,10 +134,10 @@ def main():
             print("Proceso cancelado por el usuario.")
             exit(0)
 
-    fecha_inicio = datetime.now()
+    fecha_inicio = datetime.datetime.now()
     print("----------------------")
     print(f"🕒 Inicio del proceso: {fecha_inicio.strftime('%d-%m-%Y %H:%M:%S')}")
-
+    
     if( respuesta_prompts != 'n'):
         with open('config/meta_prompt.txt', 'r', encoding='utf-8') as f:
             texto_base = f.read()
@@ -339,7 +339,7 @@ def main():
                     filas_prompts.append(fila_aux)
                 fieldnames = reader.fieldnames + ['respuesta_modelo', 'tipo_evaluacion']
                 print("---------------------------------------------------------------------------------")
-                print(f"\n🕒 Se han generado las respuestas para {nombre_archivo}: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
+                print(f"\n🕒 Se han generado las respuestas para {nombre_archivo}: {datetime.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}")
                 with open(ruta_respuestas_salida, mode='w', newline='', encoding='utf-8') as archivo_respuestas_salida:
                     writer = csv.DictWriter(archivo_respuestas_salida, fieldnames=fieldnames, delimiter='|')
                     writer.writeheader()
@@ -365,14 +365,19 @@ def main():
                     return json.dumps(resultado)
                 except Exception as e:
                     return 'error'
-            df_resultados['resultado'] = df_resultados.apply(
-                lambda fila: evaluator.evaluar_respuestas(
-                    fila, nombre_archivo,
-                    modelo_analisis_de_sentimiento=modelo_sent,
-                    tokenizer_analisis_sentimiento=tokenizer_sent,
-                    invocar_modelo_analisis_sentimiento=invocar_modelo_analisis_sentimiento
-                ), axis=1
-            )
+            if df_resultados.empty:
+                print(f"⚠️  El archivo {nombre_archivo} no contiene filas para evaluar.")
+                df_resultados['resultado'] = pd.Series(dtype='object')
+            else:
+                df_resultados['resultado'] = [
+                    evaluator.evaluar_respuestas(
+                        fila, nombre_archivo,
+                        modelo_analisis_de_sentimiento=modelo_sent,
+                        tokenizer_analisis_sentimiento=tokenizer_sent,
+                        invocar_modelo_analisis_sentimiento=invocar_modelo_analisis_sentimiento
+                    )
+                    for _, fila in df_resultados.iterrows()
+                ]
             df_acumulado = pd.concat([df_acumulado, df_resultados], ignore_index=True)
 
     total = len(df_acumulado)
@@ -397,7 +402,7 @@ def main():
     else:
         print("No hay resultados")
 
-    fecha_fin = datetime.now()
+    fecha_fin = datetime.datetime.now()
     duracion = fecha_fin - fecha_inicio
     print("----------------------")
     print(f"\n🕒 Fin del proceso: {fecha_fin.strftime('%d-%m-%Y %H:%M:%S')}")

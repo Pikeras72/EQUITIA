@@ -2,7 +2,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import os
-from config.seed_utils import set_seed
+import sys
+from pathlib import Path
+
+try:
+    from utils.reproducibility import set_seed
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 

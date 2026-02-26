@@ -1,5 +1,12 @@
 import re
-from config.seed_utils import set_seed
+import sys
+from pathlib import Path
+
+try:
+    from utils.reproducibility import set_seed
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 
@@ -105,6 +112,7 @@ class PromptGenerator:
         respuesta_generada_limpia = re.sub(r'\*\*?', '', respuesta_generada_limpia)
         respuesta_generada_limpia = re.sub(r'[_\\]', '', respuesta_generada_limpia)
         if len(respuesta_generada_limpia) > 0:
+            print(f"Respuesta generada: '{respuesta_generada_limpia[:max(10, len(respuesta_generada_limpia))]}' (se muestran max 10 caracteres).")
             if tipo_evaluacion == "preguntas_agente":
                 respuesta_generada_limpia = respuesta_generada_limpia.strip('.').strip(',')[0].upper()
             elif tipo_evaluacion == "preguntas_cerradas_esperadas":

@@ -1,5 +1,12 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoModelForSequenceClassification
-from config.seed_utils import set_seed
+import sys
+from pathlib import Path
+
+try:
+    from utils.reproducibility import set_seed
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 
@@ -14,7 +21,7 @@ class ModelManager:
     def load_generator(self):
         modelo_id = self.config.modelo_generador['id_modelo']
         modo = self.config.modelo_generador['modo_interaccion']
-        if modelo_id != '' and modo != '':
+        if modelo_id != '' and str(modo).lower() == 'local':
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_use_double_quant=True,
@@ -30,7 +37,7 @@ class ModelManager:
     def load_evaluator(self):
         modelo_id = self.config.modelo_a_evaluar['id_modelo']
         modo = self.config.modelo_a_evaluar['modo_interaccion']
-        if modelo_id != '' and modo != '':
+        if modelo_id != '' and str(modo).lower() == 'local':
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_use_double_quant=True,
@@ -46,7 +53,7 @@ class ModelManager:
     def load_sentiment(self):
         modelo_id = self.config.modelo_analisis_de_sentimiento['id_modelo']
         modo = self.config.modelo_analisis_de_sentimiento['modo_interaccion']
-        if modelo_id != '' and modo != '':
+        if modelo_id != '' and str(modo).lower() == 'local':
             tokenizer = AutoTokenizer.from_pretrained(modelo_id, use_fast=True)
             model = AutoModelForSequenceClassification.from_pretrained(modelo_id, low_cpu_mem_usage=True)
             model = model.to("cuda")

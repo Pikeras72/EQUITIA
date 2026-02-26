@@ -2,8 +2,14 @@ import pandas as pd
 import json
 from scipy.spatial.distance import euclidean
 import os
+import sys
+from pathlib import Path
 
-from config.seed_utils import set_seed
+try:
+    from utils.reproducibility import set_seed
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from utils.reproducibility import set_seed
 # Establecer una semilla para reproducibilidad (descomenta para activar)
 # set_seed(72)
 
