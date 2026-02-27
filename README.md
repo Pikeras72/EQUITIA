@@ -120,6 +120,47 @@ Así como un esquema visual del proceso completo en forma de diagrama de flujo.
 - Validar respuestas de preguntas con respuesta múltiple. ([#36](https://github.com/Pikeras72/Repositorio-TFG/issues/36))
 - Validar respuestas de preguntas de prompt injection. ([#37](https://github.com/Pikeras72/Repositorio-TFG/issues/37))
 
+
+#### ---- <Versión 0.4> --- <Actualización [18/07/2025]> ----
+
+Con esta versión se completa el pipeline de evaluación completo: se generan y validan las respuestas del modelo a evaluar, se calculan métricas de sesgo y se exportan gráficos y resultados.
+Además, se incorpora un dataset por defecto para facilitar el uso de la herramienta sin necesidad de generar prompts desde cero.
+
+**Incluye lo siguiente:**
+
+- Recoger el modelo a evaluar. ([#30](https://github.com/Pikeras72/Repositorio-TFG/issues/30))
+- Generar respuestas del modelo a evaluar usando los prompts validados. ([#29](https://github.com/Pikeras72/Repositorio-TFG/issues/29))
+- Validar respuestas de preguntas agente. ([#31](https://github.com/Pikeras72/Repositorio-TFG/issues/31))
+- Validar respuestas de preguntas análisis de sentimiento. ([#33](https://github.com/Pikeras72/Repositorio-TFG/issues/33))
+- Validar respuestas de preguntas cerradas esperadas. ([#34](https://github.com/Pikeras72/Repositorio-TFG/issues/34))
+- Validar respuestas de preguntas cerradas de probabilidad. ([#35](https://github.com/Pikeras72/Repositorio-TFG/issues/35))
+- Validar respuestas de preguntas con respuesta múltiple. ([#36](https://github.com/Pikeras72/Repositorio-TFG/issues/36))
+- Validar respuestas de preguntas de prompt injection. ([#37](https://github.com/Pikeras72/Repositorio-TFG/issues/37))
+- Evaluación de preguntas análisis de sentimiento. ([#45](https://github.com/Pikeras72/EQUITIA/issues/45))
+- Evaluación de preguntas cerradas probabilidad. ([#47](https://github.com/Pikeras72/EQUITIA/issues/47))
+- Evaluación de preguntas respuesta múltiple. ([#46](https://github.com/Pikeras72/EQUITIA/issues/46))
+- Generar gráficos de las evaluaciones. ([#52](https://github.com/Pikeras72/EQUITIA/issues/52))
+- Poner la comunidad en los gráficos, agrupando por comunidad en las respuestas múltiples. ([#53](https://github.com/Pikeras72/EQUITIA/issues/53))
+- Especificar una métrica para el índice de sensibilidad por comunidad. ([#54](https://github.com/Pikeras72/EQUITIA/issues/54))
+- Cerrar definitivamente el proceso de generación si el modelo se queda pillado. ([#56](https://github.com/Pikeras72/EQUITIA/issues/56))
+- Mostrar y recoger los avisos que se generan con casos especiales. ([#58](https://github.com/Pikeras72/EQUITIA/issues/58))
+- Incorporar un dataset por defecto a la herramienta. ([#60](https://github.com/Pikeras72/EQUITIA/issues/60))
+
+**Puntos débiles:**
+
+- El cierre de los threads aún puede generar salidas desordenadas al finalizar la ejecución.
+- No es posible usar modelos en local sin CUDA.
+- No se dispone aún de soporte para cargar el modelo generador vía API.
+- Los escenarios en los csv generados siguen siendo palabras, lo que puede causar errores de ortografía.
+
+**Mejoras futuras:**
+
+- Revisar cierre de los threads. ([#32](https://github.com/Pikeras72/Repositorio-TFG/issues/32))
+- Sustituir los escenarios de los csv generados por números. ([#22](https://github.com/Pikeras72/Repositorio-TFG/issues/22))
+- Añadir la opción de usar un modelo en local sin CUDA. ([#5](https://github.com/Pikeras72/Repositorio-TFG/issues/5))
+- Implementar la llamada al modelo generador vía API. ([#6](https://github.com/Pikeras72/Repositorio-TFG/issues/6))
+- Crear una colección de modelos para usar por defecto. ([#7](https://github.com/Pikeras72/Repositorio-TFG/issues/7))
+
 ---
 
 <a name="getting_started"></a>
