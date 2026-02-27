@@ -260,7 +260,6 @@ Las principales tecnologías y librerías utilizadas en este proyecto son:
 - **bitsandbytes**: Cuantización 4/8-bit para modelos LLM.
 - **safetensors**: Serialización segura de tensores.
 - **huggingface-hub**: Descarga de modelos y datasets desde HuggingFace Hub.
-- **tqdm**: Barras de progreso en la consola.
 - **openpyxl**: Exportación de resultados a ficheros Excel (.xlsx).
 
 [Subir⬆️](#top)
@@ -277,7 +276,7 @@ Las principales tecnologías y librerías utilizadas en este proyecto son:
 
 ## Licencia
 
-Este proyecto está bajo la licencia [Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+Este proyecto está bajo la licencia [Creative Commons (CC BY-NC-SA 4.0 International)](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
 Esto significa que puedes compartir y adaptar el material siempre que se otorgue el crédito apropiado, no se use con fines comerciales, y las obras derivadas se distribuyan bajo la misma licencia.
 
