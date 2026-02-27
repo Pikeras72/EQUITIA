@@ -120,6 +120,46 @@ Así como un esquema visual del proceso completo en forma de diagrama de flujo.
 - Validar respuestas de preguntas con respuesta múltiple. ([#36](https://github.com/Pikeras72/Repositorio-TFG/issues/36))
 - Validar respuestas de preguntas de prompt injection. ([#37](https://github.com/Pikeras72/Repositorio-TFG/issues/37))
 
+
+#### ---- <Versión 0.4> --- <Actualización [18/07/2025]> ----
+
+Esta versión completa el flujo de evaluación de los modelos LLM, añadiendo la generación y validación de respuestas por tipo de evaluación, la generación de gráficos con métricas de sesgo por comunidad, y la incorporación de un dataset por defecto.
+
+**Incluye lo siguiente:**
+
+- Incorporación del modelo a evaluar en la herramienta. ([#30](https://github.com/Pikeras72/EQUITIA/issues/30))
+- Generación de respuestas del modelo a evaluar utilizando los prompts generados. ([#29](https://github.com/Pikeras72/EQUITIA/issues/29))
+- Cierre definitivo del proceso de generación si el modelo se queda bloqueado. ([#56](https://github.com/Pikeras72/EQUITIA/issues/56))
+- Validación de respuestas para preguntas de tipo agente. ([#31](https://github.com/Pikeras72/EQUITIA/issues/31))
+- Validación y evaluación de respuestas para preguntas de análisis de sentimiento. ([#33](https://github.com/Pikeras72/EQUITIA/issues/33), [#45](https://github.com/Pikeras72/EQUITIA/issues/45))
+- Validación y evaluación de respuestas para preguntas cerradas esperadas. ([#34](https://github.com/Pikeras72/EQUITIA/issues/34))
+- Validación y evaluación de respuestas para preguntas cerradas de probabilidad. ([#35](https://github.com/Pikeras72/EQUITIA/issues/35), [#47](https://github.com/Pikeras72/EQUITIA/issues/47))
+- Validación y evaluación de respuestas para preguntas con respuesta múltiple. ([#36](https://github.com/Pikeras72/EQUITIA/issues/36), [#46](https://github.com/Pikeras72/EQUITIA/issues/46))
+- Validación de respuestas para preguntas de prompt injection. ([#37](https://github.com/Pikeras72/EQUITIA/issues/37))
+- Especificación de una métrica para el índice de sensibilidad por comunidad. ([#54](https://github.com/Pikeras72/EQUITIA/issues/54))
+- Generación de gráficos de las evaluaciones. ([#52](https://github.com/Pikeras72/EQUITIA/issues/52))
+- Incorporación de la comunidad en los gráficos, agrupando por comunidad en el caso de respuestas múltiples. ([#53](https://github.com/Pikeras72/EQUITIA/issues/53))
+- Mostrar y recoger los avisos que se generan con casos especiales. ([#58](https://github.com/Pikeras72/EQUITIA/issues/58))
+- Incorporación de un dataset por defecto a la herramienta. ([#60](https://github.com/Pikeras72/EQUITIA/issues/60))
+
+**Puntos débiles:**
+
+- El código principal ha crecido considerablemente, haciéndose más difícil de mantener y escalar.
+- La estructura del proyecto puede mejorarse para facilitar la comprensión y el mantenimiento del código.
+
+**Mejoras futuras:**
+
+- Reestructurar el código principal para la mejora de la calidad del software. ([#62](https://github.com/Pikeras72/EQUITIA/issues/62))
+
+
+#### ---- <Versión 0.5> --- <Actualización [14/10/2025]> ----
+
+Esta versión introduce una importante reestructuración del código principal para mejorar la calidad, legibilidad y mantenibilidad del software, separando la lógica en módulos independientes y reutilizables.
+
+**Incluye lo siguiente:**
+
+- Separación y reestructuración del proyecto completo, dividiendo el código principal en módulos independientes y reutilizables. ([#62](https://github.com/Pikeras72/EQUITIA/issues/62))
+
 ---
 
 <a name="getting_started"></a>
@@ -208,6 +248,20 @@ Requisitos para ejecutar el proyecto y preparación del entorno.
 <a name="tecnologías"></a>
 ### 5. Tecnologías
 
+Las principales tecnologías y librerías utilizadas en este proyecto son:
+
+- **Python 3.10+**: Lenguaje de programación principal.
+- **pandas**: Manipulación y análisis de datos estructurados (CSV, Excel).
+- **scipy**: Cálculos científicos y estadísticos.
+- **cerberus**: Validación de esquemas de datos.
+- **matplotlib / seaborn / plotly**: Generación de gráficos y visualizaciones.
+- **transformers (HuggingFace)**: Carga y uso de modelos LLM.
+- **torch (PyTorch)**: Backend de ejecución para modelos de deep learning.
+- **bitsandbytes**: Cuantización 4/8-bit para modelos LLM.
+- **safetensors**: Serialización segura de tensores.
+- **huggingface-hub**: Descarga de modelos y datasets desde HuggingFace Hub.
+- **tqdm**: Barras de progreso en la consola.
+- **openpyxl**: Exportación de resultados a ficheros Excel (.xlsx).
 
 [Subir⬆️](#top)
 
@@ -223,6 +277,9 @@ Requisitos para ejecutar el proyecto y preparación del entorno.
 
 ## Licencia
 
+Este proyecto está bajo la licencia [Creative Commons Atribución-NoComercial-CompartirIgual 4.0 Internacional (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+Esto significa que puedes compartir y adaptar el material siempre que se otorgue el crédito apropiado, no se use con fines comerciales, y las obras derivadas se distribuyan bajo la misma licencia.
 
 ## Autor
 
